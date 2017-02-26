@@ -1,0 +1,50 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+project( CeresSirkaExtrinsicsCalibrator )
+
+######################
+# find include dirs:
+######################
+
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/share/cmake/Modules")
+
+FIND_PACKAGE(Eigen3 3.2.3 REQUIRED)
+FIND_PACKAGE(Ceres REQUIRED)
+IF(APPLE)
+  FIND_LIBRARY(ACCELERATE Accelerate)
+  message(STATUS "Accelerate: " ${ACCELERATE})
+ELSE(APPLE)
+  FIND_PACKAGE(BLAS)
+  IF(BLAS_FOUND)
+    message("-- Found BLAS library: ${BLAS_LIBRARIES}")
+  ENDIF(BLAS_FOUND)
+  FIND_PACKAGE(LAPACK)
+  IF(LAPACK_FOUND)
+    message("-- Found LAPACK library: ${LAPACK_LIBRARIES}")
+  ENDIF(LAPACK_FOUND)
+ENDIF(APPLE)
+FIND_PACKAGE(Boost 1.36.0 REQUIRED COMPONENTS program_options unit_test_framework)
+
+INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
+
+ADD_DEFINITIONS(
+  -std=c++11
+)
+file(GLOB calibrator_src src/*.cpp src/*.h)
+
+IF(NOT IMU_READING_PREFIX)
+  SET(IMU_READING_PREFIX "/usr/local")
+ENDIF(NOT IMU_READING_PREFIX)
+MESSAGE(STATUS "IMU reading library prefix: " ${IMU_READING_PREFIX})
+
+INCLUDE(${IMU_READING_PREFIX}/lib/imureading/imureading-targets.cmake)
+INCLUDE_DIRECTORIES(${IMU_READING_PREFIX}/include/imureading)
+ADD_EXECUTABLE( calibrator ${calibrator_src})
+IF(APPLE)
+  TARGET_LINK_LIBRARIES( calibrator imureading ${ACCELERATE} ${CERES_LIBRARIES} ${Boost_LIBRARIES})
+ELSE(APPLE)
+  TARGET_LINK_LIBRARIES( calibrator imureading /usr/lib/liblapacke.so ${LAPACK_LIBRARIES} ${CERES_LIBRARIES} ${Boost_LIBRARIES})
+ENDIF(APPLE)
