@@ -1,0 +1,16 @@
+ADD_DEFINITIONS(
+    -std=c++11
+)
+
+file(GLOB test_srcs *.cpp)
+
+foreach(test_src ${test_srcs})
+    get_filename_component(test_name ${test_src} NAME_WE)
+    message (STATUS "Creating test: " ${test_name})
+    add_executable(${test_name} ${test_src})
+    target_link_libraries(${test_name} ${MKL_LIBS} ${Boost_LIBRARIES} pthread orientation_from_motion math_helper)
+    add_test(NAME ${test_name} COMMAND ${test_name})
+    if(MKL AND APPLE)
+        set_tests_properties(${test_name} PROPERTIES ENVIRONMENT DYLD_LIBRARY_PATH=${INTELROOT}/lib:${MKLROOT}/lib)
+    endif(MKL AND APPLE)
+endforeach(test_src)
