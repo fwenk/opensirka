@@ -1,0 +1,4 @@
+#include <githash.h>
+
+#define GIT_SHA1 "@GIT_SHA1@"
+const char Version::GITHASH[] = GIT_SHA1;
