@@ -12,7 +12,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/test/unit_test.hpp>
-#include <boost/log/trivial.hpp>
+//#include <boost/log/trivial.hpp>
 #include <boost/bind.hpp>
 #include <OrientationFromMotion/orientation_from_motion.h>
 #include <OrientationFromMotion/joint_sensor_map.h>
@@ -26,19 +26,18 @@ namespace bf = boost::filesystem;
 
 BOOST_AUTO_TEST_CASE(dynamicmodel_jacobians_trivial)
 {
-    OrientationFromMotion ofm(1, JointSensorMap(0),
-                              Variances{
-                                  .acceleration = 1.0f,
-                                  .acceleration_density = 1.0f,
-                                  .angular_velocity = 1.0f,
-                                  .angular_velocity_density = 1.0f,
-                                  .joint_velocity_difference_variance = 1.0f,
-                                  .joint_velocity_difference_decorrelation_time = 1.0f,
-                                  .velocity_variance = 1.0f,
-                                  .velocity_decorrelation_time = 1.0f,
-                                  .z_variance = 1.0f,
-                                  .z_decorrelation_time = 1.0f
-                              });
+    struct Variances variances;
+    variances.acceleration = 1.0f;
+    variances.acceleration_density = 1.0f;
+    variances.angular_velocity = 1.0f;
+    variances.angular_velocity_density = 1.0f;
+    variances.joint_velocity_difference_variance = 1.0f;
+    variances.joint_velocity_difference_decorrelation_time = 1.0f;
+    variances.velocity_variance = 1.0f;
+    variances.velocity_decorrelation_time = 1.0f;
+    variances.z_variance = 1.0f;
+    variances.z_decorrelation_time = 1.0f;
+    OrientationFromMotion ofm(1, JointSensorMap(0), variances);
     {
         const Vector3f q = Vector3f::Random();
         Vector3f v = Vector3f::Random();
@@ -70,20 +69,19 @@ BOOST_AUTO_TEST_CASE(dynamicmodel_jacobians_trivial)
 
 BOOST_AUTO_TEST_CASE(dynamicmodel_jacobians)
 {
+    struct Variances variances;
+    variances.acceleration = 1.0f;
+    variances.acceleration_density = 1.0f;
+    variances.angular_velocity = 1.0f;
+    variances.angular_velocity_density = 1.0f;
+    variances.joint_velocity_difference_variance = 1.0f;
+    variances.joint_velocity_difference_decorrelation_time = 1.0f;
+    variances.velocity_variance = 1.0f;
+    variances.velocity_decorrelation_time = 1.0f;
+    variances.z_variance = 1.0f;
+    variances.z_decorrelation_time = 1.0f;
     const int numSensors = 15;
-    OrientationFromMotion ofm(numSensors, JointSensorMap(0),
-                              Variances{
-                                  .acceleration = 1.0f,
-                                  .acceleration_density = 1.0f,
-                                  .angular_velocity = 1.0f,
-                                  .angular_velocity_density = 1.0f,
-                                  .joint_velocity_difference_variance = 1.0f,
-                                  .joint_velocity_difference_decorrelation_time = 1.0f,
-                                  .velocity_variance = 1.0f,
-                                  .velocity_decorrelation_time = 1.0f,
-                                  .z_variance = 1.0f,
-                                  .z_decorrelation_time = 1.0f
-                              });
+    OrientationFromMotion ofm(numSensors, JointSensorMap(0), variances);
     Accumulate as[numSensors];
     for (int i = 0; i < numSensors; ++i) {
         const Vector3f q = Vector3f::Random();
@@ -213,20 +211,19 @@ BOOST_AUTO_TEST_CASE(measurementmodel_jacobians)
     BOOST_CHECK(jsm.numJoints == 1);
     BOOST_CHECK(jsm.hinges.size() == 1);
 
-    const Variances variances = {
-        .acceleration = 1.0f,
-        .acceleration_density = 1.0f,
-        .angular_velocity = 1.0f,
-        .angular_velocity_density = 1.0f,
-        .joint_velocity_difference_variance = 1.0f,
-        .joint_velocity_difference_decorrelation_time = 1.0f,
-        .velocity_variance = 1.0f,
-        .velocity_decorrelation_time = 1.0f,
-        .z_variance = 1.0f,
-        .z_decorrelation_time = 1.0f,
-        .hinge_axis_variance = 0.125f*0.125f,
-        .hinge_axis_decorrelation_time = 1.0f
-    };
+    struct Variances variances;
+    variances.acceleration = 1.0f;
+    variances.acceleration_density = 1.0f;
+    variances.angular_velocity = 1.0f;
+    variances.angular_velocity_density = 1.0f;
+    variances.joint_velocity_difference_variance = 1.0f;
+    variances.joint_velocity_difference_decorrelation_time = 1.0f;
+    variances.velocity_variance = 1.0f;
+    variances.velocity_decorrelation_time = 1.0f;
+    variances.z_variance = 1.0f;
+    variances.z_decorrelation_time = 1.0f;
+    variances.hinge_axis_variance = 0.125f*0.125f;
+    variances.hinge_axis_decorrelation_time = 1.0f;
 
     for (int i = 0; i < 1000; ++i) {
         // Create sensor map with some simple state state.
@@ -311,20 +308,19 @@ BOOST_AUTO_TEST_CASE(dynamic_update_simple_test)
     JointSensorMap jsm(ss);
     BOOST_CHECK(jsm.numJoints == 1);
 
-    const Variances variances = {
-        .acceleration = 1.0f,
-        .acceleration_density = 1.0f,
-        .angular_velocity = 1.0f,
-        .angular_velocity_density = 1.0f,
-        .joint_velocity_difference_variance = 1.0f,
-        .joint_velocity_difference_decorrelation_time = 1.0f,
-        .velocity_variance = 1.0f,
-        .velocity_decorrelation_time = 1.0f,
-        .z_variance = 1.0f,
-        .z_decorrelation_time = 1.0f,
-        .hinge_axis_variance = 0.125f*0.125f,
-        .hinge_axis_decorrelation_time = 1.0f
-    };
+    struct Variances variances;
+    variances.acceleration = 1.0f;
+    variances.acceleration_density = 1.0f;
+    variances.angular_velocity = 1.0f;
+    variances.angular_velocity_density = 1.0f;
+    variances.joint_velocity_difference_variance = 1.0f;
+    variances.joint_velocity_difference_decorrelation_time = 1.0f;
+    variances.velocity_variance = 1.0f;
+    variances.velocity_decorrelation_time = 1.0f;
+    variances.z_variance = 1.0f;
+    variances.z_decorrelation_time = 1.0f;
+    variances.hinge_axis_variance = 0.125f*0.125f;
+    variances.hinge_axis_decorrelation_time = 1.0f;
 
     const int numSensors = 2;
     OrientationFromMotion ofm(numSensors, jsm, variances);
@@ -395,20 +391,19 @@ BOOST_AUTO_TEST_CASE(dynamic_update_bias_removal_test)
     JointSensorMap jsm(ss);
     BOOST_CHECK(jsm.numJoints == 1);
 
-    const Variances variances = {
-        .acceleration = 1.0f,
-        .acceleration_density = 1.0f,
-        .angular_velocity = 1.0f,
-        .angular_velocity_density = 1.0f,
-        .joint_velocity_difference_variance = 1.0f,
-        .joint_velocity_difference_decorrelation_time = 1.0f,
-        .velocity_variance = 1.0f,
-        .velocity_decorrelation_time = 1.0f,
-        .z_variance = 1.0f,
-        .z_decorrelation_time = 1.0f,
-        .hinge_axis_variance = 0.125f*0.125f,
-        .hinge_axis_decorrelation_time = 1.0f
-    };
+    struct Variances variances;
+    variances.acceleration = 1.0f;
+    variances.acceleration_density = 1.0f;
+    variances.angular_velocity = 1.0f;
+    variances.angular_velocity_density = 1.0f;
+    variances.joint_velocity_difference_variance = 1.0f;
+    variances.joint_velocity_difference_decorrelation_time = 1.0f;
+    variances.velocity_variance = 1.0f;
+    variances.velocity_decorrelation_time = 1.0f;
+    variances.z_variance = 1.0f;
+    variances.z_decorrelation_time = 1.0f;
+    variances.hinge_axis_variance = 0.125f*0.125f;
+    variances.hinge_axis_decorrelation_time = 1.0f;
     const Vector3f gravity(0.0f, 0.0f, -9.81f);
     const int numSensors = 2;
 
@@ -688,21 +683,20 @@ BOOST_AUTO_TEST_CASE(accumulate_covariance_approximation)
        which we define here. Since the approximation is a method of the OFM, we
        instantiate the OFM with the variances we also use to integrate the
        accumulate covariance matrix. */
-    const Variances var{
-        .acceleration = 1.0f,
-        .acceleration_density = 1.0f * deltaT,
-        .angular_velocity = 1.0f,
-        .angular_velocity_density = 1.0f * deltaT,
-        .joint_velocity_difference_variance = 1.0f,
-        .joint_velocity_difference_decorrelation_time = 1.0f,
-        .velocity_variance = 1.0f,
-        .velocity_decorrelation_time = 1.0f,
-        .z_variance = 1.0f,
-        .z_decorrelation_time = 1.0f,
-        .hinge_axis_variance = 0.125f*0.125f,
-        .hinge_axis_decorrelation_time = 1.0f
-    };
-    OrientationFromMotion ofm(1, JointSensorMap(0), var);
+    struct Variances variances;
+    variances.acceleration = 1.0f;
+    variances.acceleration_density = 1.0f * deltaT;
+    variances.angular_velocity = 1.0f;
+    variances.angular_velocity_density = 1.0f * deltaT;
+    variances.joint_velocity_difference_variance = 1.0f;
+    variances.joint_velocity_difference_decorrelation_time = 1.0f;
+    variances.velocity_variance = 1.0f;
+    variances.velocity_decorrelation_time = 1.0f;
+    variances.z_variance = 1.0f;
+    variances.z_decorrelation_time = 1.0f;
+    variances.hinge_axis_variance = 0.125f*0.125f;
+    variances.hinge_axis_decorrelation_time = 1.0f;
+    OrientationFromMotion ofm(1, JointSensorMap(0), variances);
 
     /* For 10 steps, which corresponds to the 10Hz output of our estimator,
        we now integrate the accumulate. */
@@ -711,8 +705,8 @@ BOOST_AUTO_TEST_CASE(accumulate_covariance_approximation)
         const Vector6f u = (Vector6f() << 100.0f/180.0f*M_PI, 0.0f, 0.0f, 0.0f, 0.0f, 10.0f).finished();
         /* The measurement covariance. */
         Matrix6f Sigma_u(Matrix6f::Zero());
-        Sigma_u.topLeftCorner<3,3>() = Matrix3f::Identity() * (var.angular_velocity);
-        Sigma_u.bottomRightCorner<3,3>() = Matrix3f::Identity() * (var.acceleration);
+        Sigma_u.topLeftCorner<3,3>() = Matrix3f::Identity() * (variances.angular_velocity);
+        Sigma_u.bottomRightCorner<3,3>() = Matrix3f::Identity() * (variances.acceleration);
         /* Jacobians of the Accumulate update. */
         Matrix6f A, B;
         compute_jacobian<AccumulateBoxOps, ParameterBoxOps>(boost::bind(update_accumulate, a, _1, deltaT), u, B);
