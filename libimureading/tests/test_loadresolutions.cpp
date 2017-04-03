@@ -21,10 +21,10 @@ BOOST_AUTO_TEST_CASE(load_resolutions)
     const bf::path tmpfile = bf::unique_path(tmpdir/"resolutions.txt-%%%%%%");
     BOOST_LOG_TRIVIAL(debug) << "Using temporary file: " << tmpfile;
 
-    const struct LIR::Resolutions original = {
-        .accelerometer = 13.37,
-        .gyroscope = 73.31
-    };
+    struct LIR::Resolutions original;
+    original.accelerometer = 13.37;
+    original.gyroscope = 73.31;
+
     LIR::save_resolutions(tmpfile.string(), original);
     const struct LIR::Resolutions loaded = LIR::load_resolutions(tmpfile.string());
     bf::remove(tmpfile);
