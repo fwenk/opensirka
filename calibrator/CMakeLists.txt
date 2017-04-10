@@ -27,6 +27,10 @@ ELSE(APPLE)
   IF(LAPACK_FOUND)
     message("-- Found LAPACK library: ${LAPACK_LIBRARIES}")
   ENDIF(LAPACK_FOUND)
+  #FIND_PACKAGE(Ceres) Currently broken
+  #FIND_PACKAGE(GLOG)
+  SET(GLOG_LIBRARIES "/usr/lib/x86_64-linux-gnu/libglog.so")
+  SET(CERES_LIBRARIES "/usr/lib/libceres.so.1")
   SET(CERES_INCLUDE_DIRS "/usr/lib/ceres")
 ENDIF(APPLE)
 
@@ -55,5 +59,5 @@ IF(APPLE)
   TARGET_LINK_LIBRARIES( calibrator imureading ${ACCELERATE} ${CERES_LIBRARIES} ${Boost_LIBRARIES} ${PROTOBUF_LIBRARIES})
 ELSE(APPLE)
   # HACK: Some libraries are hardcoded
-  TARGET_LINK_LIBRARIES( calibrator imureading /usr/lib/liblapacke.so /usr/lib/x86_64-linux-gnu/libprotobuf-c.so ${LAPACK_LIBRARIES} ${CERES_LIBRARIES} ${Boost_LIBRARIES} ${PROTOBUF_LIBRARIES})
+  TARGET_LINK_LIBRARIES( calibrator imureading /usr/lib/liblapacke.so /usr/lib/x86_64-linux-gnu/libprotobuf-c.so ${GLOG_LIBRARIES} ${LAPACK_LIBRARIES} ${CERES_LIBRARIES} ${Boost_LIBRARIES} ${PROTOBUF_LIBRARIES})
 ENDIF(APPLE)
