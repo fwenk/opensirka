@@ -12,7 +12,7 @@ ENDIF()
 ADD_DEFINITIONS(
     -Wno-unused-local-typedef
     -fpermissive
-    -std=c++11
+    -std=c++17
 )
 
 enable_testing()
