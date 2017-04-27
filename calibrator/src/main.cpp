@@ -8,8 +8,8 @@
  * Author: Felix Wenk <felix.wenk@dfki.de>
  */
 
- #include <sys/types.h>
- #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <iostream>
 #include <string>
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
     cout << "Hello SIRKA Calibration World" << endl;
     parse_command_line_options(argc, argv);
 
-    // Check if calib_out directory exists, otherwise try to create it
+    // Check if calib_out directory exists, otherwise try to create it.
     struct stat info;
     if (stat(programOptions.calib_out.c_str(), &info) != 0) {
         cout << "Directory " << programOptions.calib_out << " does not exist. "
