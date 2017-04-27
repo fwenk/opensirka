@@ -34,7 +34,7 @@ ELSE(APPLE)
   SET(CERES_INCLUDE_DIRS "/usr/lib/ceres")
 ENDIF(APPLE)
 
-FIND_PACKAGE(Boost 1.36.0 REQUIRED COMPONENTS program_options unit_test_framework)
+FIND_PACKAGE(Boost 1.36.0 REQUIRED COMPONENTS filesystem program_options unit_test_framework)
 #FIND_PACKAGE(protobuf REQUIRED)
 
 INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIRS})

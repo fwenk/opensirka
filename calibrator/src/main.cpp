@@ -8,9 +8,13 @@
  * Author: Felix Wenk <felix.wenk@dfki.de>
  */
 
+ #include <sys/types.h>
+ #include <sys/stat.h>
+
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 
 #include <IMUAccumulate.h>
@@ -59,8 +63,9 @@ void parse_command_line_options(int argc, char **argv)
 
     programOptions.calib_out = vm["calib_out"].as<std::string>();
     programOptions.prediction_out = "";
-    if (vm.count("prediction_out"))
+    if (vm.count("prediction_out")) {
         programOptions.prediction_out = vm["prediction_out"].as<std::string>();
+    }
     programOptions.jsm_file = vm["jsm_file"].as<std::string>();
     programOptions.num_sensors = vm["num_sensors"].as<int>();
 }
@@ -70,6 +75,18 @@ int main(int argc, char **argv)
     using namespace std;
     cout << "Hello SIRKA Calibration World" << endl;
     parse_command_line_options(argc, argv);
+
+    // Check if calib_out directory exists, otherwise try to create it
+    struct stat info;
+    if (stat(programOptions.calib_out.c_str(), &info) != 0) {
+        cout << "Directory " << programOptions.calib_out << " does not exist. "
+             << "Trying to create it...";
+        if (boost::filesystem::create_directories(programOptions.calib_out)) {
+            cout << "Done." << endl;;
+        } else {
+            cout << "Failed!" << endl;
+        }
+    }
 
     // Open stream to write new joint sensor map. Calibration would be wasted if this fails.
     ofstream jsmostream(programOptions.calib_out + "/joint_sensor_map.txt");
