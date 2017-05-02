@@ -42,5 +42,5 @@ INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR} )
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} )
 
-add_executable( shadow main.cpp )
+add_executable( shadow main.cpp shadowClient.cpp shadowFile.cpp shadowFormat.cpp )
 target_link_libraries( shadow ${Boost_LIBRARIES} )
