@@ -29,13 +29,17 @@
  *  Author: Christian Lins <christian.lins@uni-oldenburg.de>
  */
 
+#include <chrono>
 #include <string>
 #include <iostream>
+#include <queue>
 
 #include <eigen3/Eigen/Eigen>
 
 #include <shadowClient.hpp>
 #include <shadowFormat.hpp>
+
+#include "../calibrator/src/Accumulate.h"
 
 // Defaults to "127.0.0.1"
 const std::string Host = "";
@@ -54,7 +58,7 @@ using namespace std;
 using namespace Motion::SDK;
 
 
-double oflow(double x) {
+/*double oflow(double x) {
     if (x >= 50) {
         return x - 100;
     }
@@ -69,13 +73,19 @@ Eigen::Vector3d oflow(Eigen::Vector3d v) {
     v(1) = oflow(v(1));
     v(2) = oflow(v(2));
 }
+*/
 
-int accu_init() {
-
+int accus_init(vector<struct Accumulate*>* accus) {
+    for (int n = 0; n < 19; n++) {
+        accus->push_back(new struct Accumulate());
+    }
 }
 
-int accu_addto(Eigen::Vector3d acc, Eigen::Vector3d gyro) {
-
+int accu_addto(int idx, struct Accumulate* accu, 
+    Eigen::Vector3d acc, Eigen::Vector3d gyro, unsigned long duration) 
+{
+    cout << idx << ": " << duration << "µs; " << acc.transpose() << "; " 
+                                              << gyro.transpose() << endl;
 }
 
 int accu_finish() {
@@ -83,31 +93,51 @@ int accu_finish() {
 }
 
 int read_raw (const std::string &host, const unsigned &port) {
-    try {
-        // Open connection to the data server.
-        Client client(host, port);
-        std::cout << "Connected to " << host << ":" << port << std::endl;
+    Client client(host, port);
+    std::cout << "Connected to " << host << ":" << port << std::endl;
 
-        Client::data_type data;
-        while (client.readData(data)) {
-            typedef Format::raw_service_type map_type;
-            map_type raw = Format::Raw(data.begin(), data.end());
-            
-            if (!raw.empty()) {
-                std::cout << Motion::SDK::Format::RawElement::Name << ": "<< raw.size();
+    // It seems that the MotionShadow API does not provide timing
+    // information, so we must calculate time durations by ourself.
+    auto start = std::chrono::high_resolution_clock::now();
 
-                for (map_type::iterator itr = raw.begin(); itr != raw.end(); ++itr) {
-                    Format::RawElement::data_type acc = itr->second.getAccelerometer();
-                    Format::RawElement::data_type gyr = itr->second.getGyroscope();
-                    
-                    accu_addto( Eigen::Vector3d(acc[0], acc[1], acc[2]), 
-                                Eigen::Vector3d(gyr[0], gyr[1], gyr[2]));
-                }
+    Client::data_type data;
+    vector<pair<Eigen::Vector3d, Eigen::Vector3d>> rawbuf(19);
+    vector<struct Accumulate*> accus;
+    accus_init(&accus);
+
+    while (client.readData(data)) {
+        // client.readData provides us with realtime samples, says the docs.
+        typedef Format::raw_service_type map_type;
+        map_type raw = Format::Raw(data.begin(), data.end());
+
+        if (!raw.empty()) {
+            // One raw element contains 19 samples, one for each sensor node
+            std::cout << Motion::SDK::Format::RawElement::Name << ": "<< raw.size() << endl;
+            if (raw.size() != 19) {
+                cout << "raw.size() != 19. Skip sample." << endl;
+                continue;
+            }
+
+            int n = 0;
+            for (map_type::iterator itr = raw.begin(); itr != raw.end(); ++itr) {
+                Format::RawElement::data_type acc = itr->second.getAccelerometer();
+                Format::RawElement::data_type gyr = itr->second.getGyroscope();
+                        
+                rawbuf[n++] = make_pair(Eigen::Vector3d(acc[0], acc[1], acc[2]), 
+                                        Eigen::Vector3d(gyr[0], gyr[1], gyr[2]));
             }
         }
-    } catch(void* ex) {
-
+        
+        auto elapsed = chrono::high_resolution_clock::now() - start;
+        auto duration = chrono::duration_cast<chrono::microseconds>(elapsed).count();
+        start = std::chrono::high_resolution_clock::now();
+        if (rawbuf.size() == 19) {
+            for (int n = 0; n < 19; n++) {
+                accu_addto(n, accus[n], rawbuf[n].first, rawbuf[n].second, duration);
+            }
+        }
     }
+    
     return 0;
 }
 
