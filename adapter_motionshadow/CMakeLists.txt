@@ -10,7 +10,6 @@ ELSE()
 ENDIF()
 
 ADD_DEFINITIONS(
-    -Wno-unused-local-typedef
     -std=c++17
 )
 

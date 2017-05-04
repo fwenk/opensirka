@@ -30,8 +30,10 @@
  */
 
 #include <chrono>
-#include <string>
+#include <fstream>
 #include <iostream>
+#include <string>
+#include <sstream>
 #include <queue>
 
 #include <eigen3/Eigen/Eigen>
@@ -40,6 +42,8 @@
 #include <shadowFormat.hpp>
 
 #include "../calibrator/src/Accumulate.h"
+
+#define NUM_SENSORS 19
 
 // Defaults to "127.0.0.1"
 const std::string Host = "";
@@ -57,23 +61,14 @@ const unsigned PortConsole = 32075;
 using namespace std;
 using namespace Motion::SDK;
 
+Eigen::Quaterniond toQuaternion(Eigen::Vector3d euler) {
+    Eigen::AngleAxisd rollAngle(euler(0), Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd pitchAngle(euler(1), Eigen::Vector3d::UnitY());
+    Eigen::AngleAxisd yawAngle(euler(2), Eigen::Vector3d::UnitZ());
 
-/*double oflow(double x) {
-    if (x >= 50) {
-        return x - 100;
-    }
-    if (x < -50 && x != fmod(x,100)) {
-        return x + 100;
-    }
-    return x;
+    Eigen::Quaterniond q = yawAngle * pitchAngle * rollAngle;
+    return q;
 }
-
-Eigen::Vector3d oflow(Eigen::Vector3d v) {
-    v(0) = oflow(v(0));
-    v(1) = oflow(v(1));
-    v(2) = oflow(v(2));
-}
-*/
 
 int accus_init(vector<struct Accumulate*>* accus) {
     for (int n = 0; n < 19; n++) {
@@ -82,23 +77,43 @@ int accus_init(vector<struct Accumulate*>* accus) {
 }
 
 int accu_addto(int idx, struct Accumulate* accu, 
-    Eigen::Vector3d acc, Eigen::Vector3d gyro, unsigned long duration) 
+    Eigen::Vector3d v, Eigen::Vector3d w, unsigned int dt) 
 {
-    cout << idx << ": " << duration << "µs; " << acc.transpose() << "; " 
-                                              << gyro.transpose() << endl;
+    //cout << idx << ": " << dt << "µs; " << v.transpose() << "; " 
+    //                                          << w.transpose() << endl;
+    // Integrate gyro with dt to Euler angles
+    Eigen::Vector3d E = w * dt;
+
+    // Convert to quaternion
+    Eigen::Quaterniond Q = toQuaternion(E);
+
+    struct Accumulate update(Q, v, dt);
+    *accu *= update;
 }
 
-int accu_finish() {
+int accus_finish(vector<struct Accumulate*>* accus, vector<ofstream*>& outputFiles) {
+    auto now  = chrono::high_resolution_clock::now();
+    auto usec = chrono::time_point_cast<chrono::microseconds>(now).time_since_epoch().count();
 
+    for (int n = 0; n < 19; n++) {
+        const struct Accumulate* accu = (*accus)[n];
+        (*outputFiles[n]) << usec << " " << accu->Q.coeffs().transpose() << " "
+                          << accu->v.transpose() << " "
+                          << endl;
+    }
+
+    accus->clear();
+    accus_init(accus);
 }
 
-int read_raw (const std::string &host, const unsigned &port) {
+int read_raw (const std::string &host, const unsigned &port, vector<ofstream*>& outputFiles) {
     Client client(host, port);
     std::cout << "Connected to " << host << ":" << port << std::endl;
 
     // It seems that the MotionShadow API does not provide timing
     // information, so we must calculate time durations by ourself.
     auto start = std::chrono::high_resolution_clock::now();
+    auto sampling = 10;
 
     Client::data_type data;
     vector<pair<Eigen::Vector3d, Eigen::Vector3d>> rawbuf(19);
@@ -112,7 +127,7 @@ int read_raw (const std::string &host, const unsigned &port) {
 
         if (!raw.empty()) {
             // One raw element contains 19 samples, one for each sensor node
-            std::cout << Motion::SDK::Format::RawElement::Name << ": "<< raw.size() << endl;
+            //std::cout << Motion::SDK::Format::RawElement::Name << ": "<< raw.size() << endl;
             if (raw.size() != 19) {
                 cout << "raw.size() != 19. Skip sample." << endl;
                 continue;
@@ -133,8 +148,13 @@ int read_raw (const std::string &host, const unsigned &port) {
         start = std::chrono::high_resolution_clock::now();
         if (rawbuf.size() == 19) {
             for (int n = 0; n < 19; n++) {
-                accu_addto(n, accus[n], rawbuf[n].first, rawbuf[n].second, duration);
+                accu_addto(n, accus[n], rawbuf[n].first, rawbuf[n].second, (unsigned int)duration);
             }
+        }
+
+        if (--sampling == 0) {
+            sampling = 10;
+            accus_finish(&accus, outputFiles);
         }
     }
     
@@ -143,6 +163,12 @@ int read_raw (const std::string &host, const unsigned &port) {
 
 
 int main(int argc, char* argv[]) {
-    read_raw("", PortRaw);
+    vector<ofstream*> outputFiles;
+    for (int n = 0; n < NUM_SENSORS; n++) {
+        stringstream name; name << "sensor-" << n << "-accumulate.log";
+        outputFiles.push_back(new ofstream(name.str().c_str()));
+    }
+
+    read_raw("", PortRaw, outputFiles);
     return 0;
 }
