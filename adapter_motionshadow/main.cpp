@@ -76,16 +76,25 @@ int accus_init(vector<struct Accumulate*>* accus) {
     }
 }
 
+/**
+ *  Creates an accumulate increment from sensor values and adds it
+ *  to current accumulate.
+ *  
+ *  @param accu Pointer to current accumulate
+ *  @param a Accelerometer value
+ *  @param g Gyroscope value
+ *  @param dt Time interval
+ */
 int accu_addto(int idx, struct Accumulate* accu, 
-    Eigen::Vector3d v, Eigen::Vector3d w, unsigned int dt) 
+    Eigen::Vector3d a, Eigen::Vector3d w, unsigned int dt) 
 {
-    //cout << idx << ": " << dt << "µs; " << v.transpose() << "; " 
-    //                                          << w.transpose() << endl;
-    // Integrate gyro with dt to Euler angles
-    Eigen::Vector3d E = w * dt;
+    // Integrate accelerometer to get velocity
+    Eigen::Vector3d v = Rot(w * dt) * a * dt;
+
+    Eigen::Vector3d sa = w * dt;
 
     // Convert to quaternion
-    Eigen::Quaterniond Q = toQuaternion(E);
+    Eigen::Quaterniond Q = toQuaternion(sa);
 
     struct Accumulate update(Q, v, dt);
     *accu *= update;
