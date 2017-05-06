@@ -12,25 +12,13 @@ ENDIF()
 ADD_DEFINITIONS(
     -Wno-unused-local-typedef
     -fpermissive
-    -std=c++17
+    -std=c++11
 )
 
 enable_testing()
 
 SET(ENV{PKG_CONFIG_PATH} "/opt/X11/lib/pkgconfig/")
 FIND_PACKAGE(PkgConfig)
-
-IF( NEON )
-  ADD_DEFINITIONS(
-    -mfpu=neon -mfloat-abi=softfp
-  )
-ENDIF()
-
-IF( SSE )
-  ADD_DEFINITIONS(
-    -msse2
-  )
-ENDIF()
 
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
@@ -71,7 +59,7 @@ INCLUDE(${IMU_READING_PREFIX}/lib/imureading/imureading-targets.cmake)
 INCLUDE_DIRECTORIES(${IMU_READING_PREFIX}/include/imureading)
 
 add_executable( M2AccuReplay m2-accu-replay.cpp ${GIT_HASH_SOURCE_FILE})
-target_link_libraries( M2AccuReplay imureading orientation_from_motion jsmviz ${Boost_LIBRARIES} options )
+target_link_libraries( M2AccuReplay imureading orientation_from_motion jsmviz ${Boost_LIBRARIES} options pthread)
 
 ADD_DEFINITIONS(
     -std=c++11
