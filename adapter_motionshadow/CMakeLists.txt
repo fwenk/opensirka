@@ -10,7 +10,7 @@ ELSE()
 ENDIF()
 
 ADD_DEFINITIONS(
-    -std=c++17
+    -std=c++1z
 )
 
 SET(ENV{PKG_CONFIG_PATH} "/opt/X11/lib/pkgconfig/")

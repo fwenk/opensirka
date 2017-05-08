@@ -70,9 +70,10 @@ Eigen::Quaterniond toQuaternion(Eigen::Vector3d euler) {
     return q;
 }
 
-int accus_init(vector<struct Accumulate*>* accus) {
-    for (int n = 0; n < 19; n++) {
-        accus->push_back(new struct Accumulate());
+int accus_init(vector<struct Accumulate*>& accus, vector<Eigen::Vector3d>& omega) {
+    for (int n = 0; n < NUM_SENSORS; n++) {
+        accus.push_back(new struct Accumulate());
+        omega.push_back(Eigen::Vector3d(0,0,0));
     }
 }
 
@@ -100,19 +101,20 @@ int accu_addto(int idx, struct Accumulate* accu,
     *accu *= update;
 }
 
-int accus_finish(vector<struct Accumulate*>* accus, vector<ofstream*>& outputFiles) {
+int accus_finish(vector<struct Accumulate*>& accus, vector<ofstream*>& outputFiles, vector<Eigen::Vector3d>& omega) {
     auto now  = chrono::high_resolution_clock::now();
     auto usec = chrono::time_point_cast<chrono::microseconds>(now).time_since_epoch().count();
 
-    for (int n = 0; n < 19; n++) {
-        const struct Accumulate* accu = (*accus)[n];
+    for (int n = 0; n < NUM_SENSORS; n++) {
+        const struct Accumulate* accu = accus[n];
         (*outputFiles[n]) << usec << " " << accu->Q.coeffs().transpose() << " "
                           << accu->v.transpose() << " "
+                          << omega[n].transpose() << " "
                           << endl;
     }
 
-    accus->clear();
-    accus_init(accus);
+    accus.clear();
+    accus_init(accus, omega);
 }
 
 int read_raw (const std::string &host, const unsigned &port, vector<ofstream*>& outputFiles) {
@@ -127,7 +129,9 @@ int read_raw (const std::string &host, const unsigned &port, vector<ofstream*>& 
     Client::data_type data;
     vector<pair<Eigen::Vector3d, Eigen::Vector3d>> rawbuf(19);
     vector<struct Accumulate*> accus;
-    accus_init(&accus);
+    vector<Eigen::Vector3d> omega;
+
+    accus_init(accus, omega);
 
     while (client.readData(data)) {
         // client.readData provides us with realtime samples, says the docs.
@@ -163,7 +167,7 @@ int read_raw (const std::string &host, const unsigned &port, vector<ofstream*>& 
 
         if (--sampling == 0) {
             sampling = 10;
-            accus_finish(&accus, outputFiles);
+            accus_finish(accus, outputFiles, omega);
         }
     }
     
