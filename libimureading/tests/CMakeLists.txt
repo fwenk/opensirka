@@ -9,13 +9,13 @@ ADD_DEFINITIONS(
     )
 
 add_executable(test_loadresolutions test_loadresolutions.cpp)
-target_link_libraries(test_loadresolutions ${Boost_LIBRARIES} imureading)
+target_link_libraries(test_loadresolutions ${Boost_LIBRARIES} imureading pthread)
 add_test(NAME test_loadresolutions COMMAND test_loadresolutions)
 
 add_executable(test_noisedensities test_noisedensities.cpp)
-target_link_libraries(test_noisedensities ${Boost_LIBRARIES} imureading)
+target_link_libraries(test_noisedensities ${Boost_LIBRARIES} imureading pthread)
 add_test(NAME test_noisedensities COMMAND test_noisedensities)
 
 add_executable(test_loadaccumulate test_loadaccumulate.cpp)
-target_link_libraries(test_loadaccumulate ${Boost_LIBRARIES} imureading)
+target_link_libraries(test_loadaccumulate ${Boost_LIBRARIES} imureading pthread)
 add_test(NAME test_loadaccumulate COMMAND test_loadaccumulate "${CMAKE_CURRENT_LIST_DIR}/data/sensor-0-accumulate.log")

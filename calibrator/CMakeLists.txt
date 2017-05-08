@@ -12,12 +12,17 @@ FIND_PACKAGE(PkgConfig)
 PKG_CHECK_MODULES(EIGEN3 REQUIRED eigen3>=3.2.3)
 #FIND_PACKAGE(Eigen3 3.2.3 REQUIRED)
 
+# Hack
+SET(GLOG_LIBRARIES "/usr/lib/x86_64-linux-gnu/libglog.so")
+SET(CERES_LIBRARIES "/usr/lib/libceres.so.1")
+SET(CERES_INCLUDE_DIRS "/usr/lib/ceres")
+
+
 IF(APPLE)
   FIND_LIBRARY(ACCELERATE Accelerate)
   message(STATUS "Accelerate: " ${ACCELERATE})
 
   FIND_PACKAGE(Ceres REQUIRED PATHS /usr/lib/ceres)
-  #PKG_CHECK_MODULES(CERES REQUIRED ceres)
 ELSE(APPLE)
   FIND_PACKAGE(BLAS)
   IF(BLAS_FOUND)
@@ -27,11 +32,7 @@ ELSE(APPLE)
   IF(LAPACK_FOUND)
     message("-- Found LAPACK library: ${LAPACK_LIBRARIES}")
   ENDIF(LAPACK_FOUND)
-  #FIND_PACKAGE(Ceres) Currently broken
-  #FIND_PACKAGE(GLOG)
-  SET(GLOG_LIBRARIES "/usr/lib/x86_64-linux-gnu/libglog.so")
-  SET(CERES_LIBRARIES "/usr/lib/libceres.so.1")
-  SET(CERES_INCLUDE_DIRS "/usr/lib/ceres")
+  #FIND_PACKAGE(Ceres)
 ENDIF(APPLE)
 
 FIND_PACKAGE(Boost 1.36.0 REQUIRED COMPONENTS filesystem program_options unit_test_framework)
@@ -43,7 +44,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
 ADD_DEFINITIONS(
-  -std=c++11
+  -std=c++1z
 )
 file(GLOB calibrator_src src/*.cpp src/*.h)
 
@@ -58,6 +59,5 @@ ADD_EXECUTABLE( calibrator ${calibrator_src})
 IF(APPLE)
   TARGET_LINK_LIBRARIES( calibrator imureading ${ACCELERATE} ${CERES_LIBRARIES} ${Boost_LIBRARIES} ${PROTOBUF_LIBRARIES})
 ELSE(APPLE)
-  # HACK: Some libraries are hardcoded
-  TARGET_LINK_LIBRARIES( calibrator imureading /usr/lib/liblapacke.so /usr/lib/x86_64-linux-gnu/libprotobuf-c.so ${GLOG_LIBRARIES} ${LAPACK_LIBRARIES} ${CERES_LIBRARIES} ${Boost_LIBRARIES} ${PROTOBUF_LIBRARIES})
+  TARGET_LINK_LIBRARIES( calibrator imureading ${LAPACK_LIBRARIES} ${CERES_LIBRARIES} ${Boost_LIBRARIES} ${PROTOBUF_LIBRARIES})
 ENDIF(APPLE)

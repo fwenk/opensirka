@@ -10,8 +10,6 @@
 #include <Accelerate/Accelerate.h>
 #else
 #include <lapacke.h>
-#include <atlas/cblas.h>
-#include <atlas/clapack.h>
 #endif
 
 #include <ceres/rotation.h>
@@ -259,25 +257,15 @@ struct DynamicAccumulateMeasurement {
         PackedTriangularMatrix<6> inv_of_cov_sqrt;
         inv_of_cov_sqrt.setFromEigenMatrix(covariance);
         char uplo = 'L';
-#ifdef __APPLE__
-        __CLPK_integer n = 6;
-        __CLPK_integer info = 0;
-        dpptrf_(&uplo, &n, inv_of_cov_sqrt.elems, &info);
-#else
         int n = 6;
         int info = 0;
-        LAPACKE_dpptrf(LAPACK_COL_MAJOR, uplo, n, inv_of_cov_sqrt.elems);
-#endif
+        dpptrf_(&uplo, &n, inv_of_cov_sqrt.elems, &info);
         if (info != 0) {
             std::cerr << "Could not compute cholesky decomposition of accumulate covariance matrix." << std::endl;
             exit(1);
         }
         char diag = 'N';
-#ifdef __APPLE__
         dtptri_(&uplo, &diag, &n, inv_of_cov_sqrt.elems, &info);
-#else
-        info = LAPACKE_dtptri(LAPACK_COL_MAJOR, uplo, diag, n, inv_of_cov_sqrt.elems);
-#endif
         if (info != 0) {
             std::cerr << "Could not compute inverse of lower-triangular Cholesky matrix of accumulate covariance." << std::endl;
             exit(1);
@@ -476,26 +464,16 @@ void test_helper_functions()
             assert (std::abs(A(r, c) - A_packed(r, c)) < 1e-10);
 
     char uplo = 'L';
-#ifdef __APPLE__
-    __CLPK_integer n = 6;
-    __CLPK_integer info = 0;
-    dpptrf_(&uplo, &n, A_packed.elems, &info);
-#else
     int n = 6;
     int info = 0;
-    info = LAPACKE_dpptrf(LAPACK_COL_MAJOR, uplo, n, A_packed.elems);
-#endif
+    dpptrf_(&uplo, &n, A_packed.elems, &info);
 
     Eigen::Matrix<double, 6, 6> L = A.llt().matrixL();
     std::cout << "EIGEN RESULT" << std::endl << L << std::endl << std::endl;
     std::cout << "LAPACK(PACKED) RESULT" << std::endl << A_packed.toEigenMatrix() << std::endl << std::endl;
 
     char diag = 'N';
-#ifdef __APPLE__
     dtptri_(&uplo, &diag, &n, A_packed.elems, &info);
-#else
-    LAPACKE_dtptri(LAPACK_COL_MAJOR, uplo, diag, n, A_packed.elems);
-#endif
     std::cout << "EIGEN RESULT" << std::endl << L.inverse() << std::endl << std::endl;
     std::cout << "LAPACK(PACKED) RESULT" << std::endl << A_packed.toEigenMatrix() << std::endl;
 
