@@ -37,11 +37,13 @@
 #include <queue>
 
 #include <eigen3/Eigen/Eigen>
+#include <boost/program_options.hpp>
 
 #include <shadowClient.hpp>
 #include <shadowFormat.hpp>
 
 #include "../calibrator/src/Accumulate.h"
+#include "../postureestimator/MathHelper/expm.h"
 
 #define NUM_SENSORS 19
 
@@ -52,11 +54,11 @@ const std::string Host = "";
 // Use 32077 for raw data service.
 // Use 32076 for configurable data service.
 // Use 32075 for console service.
-const unsigned PortPreview = 32079;
-const unsigned PortSensor = 32078;
+//const unsigned PortPreview = 32079;
+//const unsigned PortSensor = 32078;
 const unsigned PortRaw = 32077;
-const unsigned PortConfigurable = 32076;
-const unsigned PortConsole = 32075;
+//const unsigned PortConfigurable = 32076;
+//const unsigned PortConsole = 32075;
 
 using namespace std;
 using namespace Motion::SDK;
@@ -70,11 +72,26 @@ Eigen::Quaterniond toQuaternion(Eigen::Vector3d euler) {
     return q;
 }
 
-int accus_init(vector<struct Accumulate*>& accus, vector<Eigen::Vector3d>& omega) {
+/**
+ *  Initializes accu und omega vectors.
+ */
+int accus_init(vector<struct Accumulate*>* accus, vector<Eigen::Vector3d>* omega) {
     for (int n = 0; n < NUM_SENSORS; n++) {
-        accus.push_back(new struct Accumulate());
-        omega.push_back(Eigen::Vector3d(0,0,0));
+        struct Accumulate* accu = new struct Accumulate();
+        accus->push_back(accu);
+        if (omega != nullptr) {
+            omega->push_back(Eigen::Vector3d(0,0,0));
+        }
     }
+
+    #ifdef DEBUG
+    for (int n = 0; n < NUM_SENSORS; n++) {
+        cout << (unsigned long)accus->operator[](n) << " ";
+    }
+    cout << endl;
+    #endif
+
+    return 0;
 }
 
 /**
@@ -90,31 +107,45 @@ int accu_addto(int idx, struct Accumulate* accu,
     Eigen::Vector3d a, Eigen::Vector3d w, unsigned int dt) 
 {
     // Integrate accelerometer to get velocity
-    Eigen::Vector3d v = Rot(w * dt) * a * dt;
+    Eigen::Matrix3f Q_f;
+    Eigen::Vector3f w_f = w.cast<float>();
+    Rot::expm(Q_f, w_f * dt);
+    Eigen::Vector3f a_f = a.cast<float>();
+    Eigen::Vector3f v_f = Q_f * a_f * dt; // FIXME
 
     Eigen::Vector3d sa = w * dt;
 
     // Convert to quaternion
     Eigen::Quaterniond Q = toQuaternion(sa);
-
+    Eigen::Vector3d v = v_f.cast<double>();
     struct Accumulate update(Q, v, dt);
     *accu *= update;
+
+    return 0;
 }
 
-int accus_finish(vector<struct Accumulate*>& accus, vector<ofstream*>& outputFiles, vector<Eigen::Vector3d>& omega) {
+int accus_clear(vector<struct Accumulate*>* accus) {
+    std::for_each(accus->begin(), accus->end(), std::default_delete<struct Accumulate>());
+    accus->clear();
+    return 0;
+}
+
+int accus_finish(vector<struct Accumulate*>* accus, vector<ofstream*>* outputFiles, vector<Eigen::Vector3d>* omega) {
     auto now  = chrono::high_resolution_clock::now();
     auto usec = chrono::time_point_cast<chrono::microseconds>(now).time_since_epoch().count();
 
     for (int n = 0; n < NUM_SENSORS; n++) {
-        const struct Accumulate* accu = accus[n];
-        (*outputFiles[n]) << usec << " " << accu->Q.coeffs().transpose() << " "
+        const struct Accumulate* accu = (*accus)[n];
+        *(*outputFiles)[n] << usec << " " << accu->Q.coeffs().transpose() << " "
                           << accu->v.transpose() << " "
-                          << omega[n].transpose() << " "
+                          << omega->operator[](n).transpose() << " "
                           << endl;
     }
 
-    accus.clear();
-    accus_init(accus, omega);
+    accus_clear(accus);
+    accus_init(accus, nullptr);
+
+    return 0;
 }
 
 int read_raw (const std::string &host, const unsigned &port, vector<ofstream*>& outputFiles) {
@@ -127,11 +158,11 @@ int read_raw (const std::string &host, const unsigned &port, vector<ofstream*>& 
     auto sampling = 10;
 
     Client::data_type data;
-    vector<pair<Eigen::Vector3d, Eigen::Vector3d>> rawbuf(19);
+    vector<pair<Eigen::Vector3d, Eigen::Vector3d>> rawbuf(NUM_SENSORS);
     vector<struct Accumulate*> accus;
     vector<Eigen::Vector3d> omega;
 
-    accus_init(accus, omega);
+    accus_init(&accus, &omega);
 
     while (client.readData(data)) {
         // client.readData provides us with realtime samples, says the docs.
@@ -150,7 +181,8 @@ int read_raw (const std::string &host, const unsigned &port, vector<ofstream*>& 
             for (map_type::iterator itr = raw.begin(); itr != raw.end(); ++itr) {
                 Format::RawElement::data_type acc = itr->second.getAccelerometer();
                 Format::RawElement::data_type gyr = itr->second.getGyroscope();
-                        
+                
+                omega[n] = Eigen::Vector3d(gyr[0], gyr[1], gyr[2]);
                 rawbuf[n++] = make_pair(Eigen::Vector3d(acc[0], acc[1], acc[2]), 
                                         Eigen::Vector3d(gyr[0], gyr[1], gyr[2]));
             }
@@ -167,7 +199,7 @@ int read_raw (const std::string &host, const unsigned &port, vector<ofstream*>& 
 
         if (--sampling == 0) {
             sampling = 10;
-            accus_finish(accus, outputFiles, omega);
+            accus_finish(&accus, &outputFiles, &omega);
         }
     }
     
@@ -176,6 +208,16 @@ int read_raw (const std::string &host, const unsigned &port, vector<ofstream*>& 
 
 
 int main(int argc, char* argv[]) {
+    namespace po = boost::program_options;
+
+    po::options_description desc("shadow command line options");
+    desc.add_options()
+    ("log-raw-data", po::value<std::string>(), "Logs the raw accelerometer and gyroscope data to files");
+
+    po::variables_map vm;
+    po::parsed_options parsed = po::command_line_parser(argc, argv).options(desc).run();
+    po::store(parsed, vm);
+
     vector<ofstream*> outputFiles;
     for (int n = 0; n < NUM_SENSORS; n++) {
         stringstream name; name << "sensor-" << n << "-accumulate.log";

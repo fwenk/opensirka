@@ -11,7 +11,13 @@ ENDIF()
 
 ADD_DEFINITIONS(
     -std=c++1z
+    -march=native
+    -Wall
 )
+
+IF(CMAKE_BUILD_TYPE MATCHES Debug)
+  ADD_DEFINITIONS(-DDEBUG)
+ENDIF()
 
 SET(ENV{PKG_CONFIG_PATH} "/opt/X11/lib/pkgconfig/")
 FIND_PACKAGE(PkgConfig)
@@ -41,5 +47,5 @@ INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR} )
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} )
 
-add_executable( shadow main.cpp shadowClient.cpp shadowFile.cpp shadowFormat.cpp )
+add_executable( shadow main.cpp shadowClient.cpp shadowFile.cpp shadowFormat.cpp ../postureestimator/MathHelper/expm.cpp ../postureestimator/MathHelper/crossx.cpp)
 target_link_libraries( shadow ${Boost_LIBRARIES} )
