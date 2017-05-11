@@ -9,6 +9,7 @@
 #include <Eigen/Dense>
 
 namespace Rot {
+    void expm(Eigen::Matrix3d& Q, const Eigen::Vector3d& q);
     void expm(Eigen::Matrix3f& Q, const Eigen::Vector3f& q);
     void logm(Eigen::Vector3f& q, const Eigen::Matrix3f& Q);
 

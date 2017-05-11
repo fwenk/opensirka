@@ -37,6 +37,53 @@ static inline void Q_from_axis_cos_sine(Eigen::Matrix3f& Q, const Eigen::Vector3
     *(d++) = z * z * cv + c;    // (3,3)
 }
 
+/** Rodrigues formula. */
+static inline void Q_from_axis_cos_sine(Eigen::Matrix3d& Q, const Eigen::Vector3d& unit_axis, const double c, const double s)
+{
+    const double& x = unit_axis[0];
+    const double& y = unit_axis[1];
+    const double& z = unit_axis[2];
+    const double cv = 1.0f - c;
+    const double xyv = x * y * cv;
+    const double yzv = y * z * cv;
+    const double xzv = x * z * cv;
+
+    double *d = Q.data();
+    // Column-major storage
+    *(d++) = x * x * cv + c;    // (1,1)
+    *(d++) = xyv + z * s;       // (2,1)
+    *(d++) = xzv - y * s;       // (3,1)
+    *(d++) = xyv - z * s;       // (1,2)
+    *(d++) = y * y * cv + c;    // (2,2)
+    *(d++) = yzv + x * s;       // (3,2)
+    *(d++) = xzv + y * s;       // (1,3)
+    *(d++) = yzv - x * s;       // (2,3)
+    *(d++) = z * z * cv + c;    // (3,3)
+}
+
+/**
+ *  Calculates cross product matrix of vector q and the matrix exponential.
+ *  Double precision variant.
+ */
+void Rot::expm(Eigen::Matrix3d& Q, const Eigen::Vector3d& q)
+{
+    const double angle = q.norm();
+    if (angle < 5.0f/180.0f*M_PI) {
+        const Eigen::Matrix3d qx = crossx(q);
+        const Eigen::Matrix3d qx2 = qx * qx;
+        const double angle2 = angle * angle;
+        const double angle4 = angle2 * angle2;
+        const double taylor1 = 1.0f - angle2/6.0f + angle4/120.0f;
+        const double taylor2 = 0.5f - angle2/24.0f + angle4/720.0f;
+        Q = Eigen::Matrix3d::Identity() + qx * taylor1 + qx2 * taylor2;
+    } else {
+        const Eigen::Vector3d q_unit = q / angle;
+        const double c = cos(angle);
+        const double s = sqrt(1 - c*c);
+        Q_from_axis_cos_sine(Q, q_unit, c, s);
+    }
+}
+
 void Rot::expm(Eigen::Matrix3f& Q, const Eigen::Vector3f& q)
 {
     const float angle = q.norm();

@@ -106,18 +106,12 @@ int accus_init(vector<struct Accumulate*>* accus, vector<Eigen::Vector3d>* omega
 int accu_addto(int idx, struct Accumulate* accu, 
     Eigen::Vector3d a, Eigen::Vector3d w, unsigned int dt) 
 {
-    // Integrate accelerometer to get velocity
-    Eigen::Matrix3f Q_f;
-    Eigen::Vector3f w_f = w.cast<float>();
-    Rot::expm(Q_f, w_f * dt);
-    Eigen::Vector3f a_f = a.cast<float>();
-    Eigen::Vector3f v_f = Q_f * a_f * dt; // FIXME
+    Eigen::Matrix3d R;
+    Rot::expm(R, w * dt); // R is rotation matrix to rotate a in the originating coord system
+    Eigen::Vector3d v = R * a * dt; // Integrate accelerometer to get velocity
 
-    Eigen::Vector3d sa = w * dt;
+    Eigen::Quaterniond Q = toQuaternion(w * dt);
 
-    // Convert to quaternion
-    Eigen::Quaterniond Q = toQuaternion(sa);
-    Eigen::Vector3d v = v_f.cast<double>();
     struct Accumulate update(Q, v, dt);
     *accu *= update;
 
