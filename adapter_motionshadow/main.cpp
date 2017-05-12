@@ -157,45 +157,51 @@ int read_raw (const std::string &host, const unsigned &port, vector<ofstream*>& 
     vector<Eigen::Vector3d> omega;
 
     accus_init(&accus, &omega);
+    while (true) {
+        // Wait until there is incoming data on the open connection,
+        // timing out after 5 seconds.
+        cout << "Connect... wait for data" << endl;
+        if (client.waitForData()) {
+            while (client.readData(data)) {
+                // client.readData provides us with realtime samples, says the docs.
+                typedef Format::raw_service_type map_type;
+                map_type raw = Format::Raw(data.begin(), data.end());
 
-    while (client.readData(data)) {
-        // client.readData provides us with realtime samples, says the docs.
-        typedef Format::raw_service_type map_type;
-        map_type raw = Format::Raw(data.begin(), data.end());
+                if (!raw.empty()) {
+                    // One raw element contains 19 samples, one for each sensor node
+                    //std::cout << Motion::SDK::Format::RawElement::Name << ": "<< raw.size() << endl;
+                    if (raw.size() != 19) {
+                        cout << "raw.size() != 19. Skip sample." << endl;
+                        continue;
+                    }
 
-        if (!raw.empty()) {
-            // One raw element contains 19 samples, one for each sensor node
-            //std::cout << Motion::SDK::Format::RawElement::Name << ": "<< raw.size() << endl;
-            if (raw.size() != 19) {
-                cout << "raw.size() != 19. Skip sample." << endl;
-                continue;
-            }
-
-            int n = 0;
-            for (map_type::iterator itr = raw.begin(); itr != raw.end(); ++itr) {
-                Format::RawElement::data_type acc = itr->second.getAccelerometer();
-                Format::RawElement::data_type gyr = itr->second.getGyroscope();
+                    int n = 0;
+                    for (map_type::iterator itr = raw.begin(); itr != raw.end(); ++itr) {
+                        Format::RawElement::data_type acc = itr->second.getAccelerometer();
+                        Format::RawElement::data_type gyr = itr->second.getGyroscope();
+                        
+                        omega[n] = Eigen::Vector3d(gyr[0], gyr[1], gyr[2]);
+                        rawbuf[n++] = make_pair(Eigen::Vector3d(acc[0], acc[1], acc[2]), 
+                                                Eigen::Vector3d(gyr[0], gyr[1], gyr[2]));
+                    }
+                }
                 
-                omega[n] = Eigen::Vector3d(gyr[0], gyr[1], gyr[2]);
-                rawbuf[n++] = make_pair(Eigen::Vector3d(acc[0], acc[1], acc[2]), 
-                                        Eigen::Vector3d(gyr[0], gyr[1], gyr[2]));
-            }
-        }
-        
-        auto elapsed = chrono::high_resolution_clock::now() - start;
-        auto duration = chrono::duration_cast<chrono::microseconds>(elapsed).count();
-        start = std::chrono::high_resolution_clock::now();
-        if (rawbuf.size() == 19) {
-            for (int n = 0; n < 19; n++) {
-                accu_addto(n, accus[n], rawbuf[n].first, rawbuf[n].second, (unsigned int)duration);
-            }
-        }
+                auto elapsed = chrono::high_resolution_clock::now() - start;
+                auto duration = chrono::duration_cast<chrono::microseconds>(elapsed).count();
+                start = std::chrono::high_resolution_clock::now();
+                if (rawbuf.size() == 19) {
+                    for (int n = 0; n < 19; n++) {
+                        accu_addto(n, accus[n], rawbuf[n].first, rawbuf[n].second, (unsigned int)duration);
+                    }
+                }
 
-        if (--sampling == 0) {
-            sampling = 10;
-            accus_finish(&accus, &outputFiles, &omega);
-        }
-    }
+                if (--sampling == 0) {
+                    sampling = 10;
+                    accus_finish(&accus, &outputFiles, &omega);
+                }
+            } // end while(readData)
+        } // end if
+    } // end while(true)
     
     return 0;
 }
