@@ -12,8 +12,11 @@
 #include <unordered_map>
 #include <iostream>
 #include <memory>
+#include <iterator>
 
 using namespace Eigen;
+
+// MARK: SensorLocation Implementation
 
 SensorLocation::SensorLocation(const Vector3d& jointInSensor, const int sensorId)
 : jointInSensor(jointInSensor), sensorId(sensorId),
@@ -25,6 +28,8 @@ SensorLocation::SensorLocation(const Vector3d& jointInSensor, const int sensorId
 : jointInSensor(jointInSensor), sensorId(sensorId),
   type(JointType::hinge), hingeAxisInSensor(hingeAxisInSensor)
 {}
+
+// MARK: Joint Sensor Map implementation
 
 JointSensorMap::JointSensorMap(const int numJoints)
 : numJoints(numJoints), sensors(new JointSensors[numJoints])
@@ -222,4 +227,36 @@ void JointSensorMap::exportToAsymptote(const std::vector<Eigen::Quaterniond>& se
 JointSensorMap::~JointSensorMap()
 {
     delete[] sensors;
+}
+
+// MARK: JointSymmetries implementation
+
+
+Symmetry::Symmetry(const std::string& string)
+{
+    std::stringstream ss(string);
+    ss >> a.body_id >> a.preceeding_joint_id >> a.succeeding_joint_id
+       >> b.body_id >> b.preceeding_joint_id >> b.succeeding_joint_id;
+}
+
+class Line : public std::string
+{
+public:
+    typedef std::istream_iterator<Line> Iterator;
+private:
+    friend std::istream& operator>>(std::istream& is, Line& line)
+    {
+        return std::getline(is, line);
+    }
+};
+
+JointSymmetries::JointSymmetries()
+{}
+
+JointSymmetries::JointSymmetries(std::istream& is)
+{
+    Line::Iterator it(is), end;
+    for (; it != end; ++it)
+        if ((*it)[0] != '#' && !std::isspace((*it)[0]))
+            symmetries.push_back(Symmetry(*it));
 }

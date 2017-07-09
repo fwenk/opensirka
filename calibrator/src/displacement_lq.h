@@ -33,6 +33,7 @@ void calibrate_displacements(
         std::vector<std::shared_ptr<LIR::IMUAccumulates>> readings,
         std::vector<TimedSensorStateRun>& imuTrajectories,
         JointSensorMap& jsm,
-        const struct StandardDeviations& stddevs);
+        const struct StandardDeviations& stddevs,
+        const std::list<Symmetry>& symmetries);
 
 #endif // __DISPLACEMENT_LQ_H_

@@ -20,6 +20,7 @@
 
 struct ProgramOptions {
     std::string jsm_file;
+    std::string symmetry_file;
     std::string imu_data_dir;
     std::string calib_out;
     std::string prediction_out;
@@ -37,7 +38,8 @@ void parse_command_line_options(int argc, char **argv)
     ("calib_out", po::value<std::string>()->required(), "Calibration output path.")
     ("prediction_out", po::value<std::string>(), "Orientation prediction output path.")
     ("num_sensors", po::value<int>()->required(), "Number of sensors to calibrate.")
-    ("jsm_file", po::value<std::string>()->required(), "File with the joint-sensor-map.");
+    ("jsm_file", po::value<std::string>()->required(), "File with the joint-sensor-map.")
+    ("symmetry_file", po::value<std::string>(), "File with the skeleton symmetry specification.");
 
     po::variables_map vm;
     po::parsed_options parsed = po::command_line_parser(argc, argv).options(desc).run();
@@ -63,6 +65,21 @@ void parse_command_line_options(int argc, char **argv)
         programOptions.prediction_out = vm["prediction_out"].as<std::string>();
     programOptions.jsm_file = vm["jsm_file"].as<std::string>();
     programOptions.num_sensors = vm["num_sensors"].as<int>();
+    if (vm.count("symmetry_file"))
+        programOptions.symmetry_file = vm["symmetry_file"].as<std::string>();
+}
+
+static JointSymmetries createJointSymmetries(const std::string& symmetry_file)
+{
+    using namespace std;
+    if (symmetry_file.empty())
+        return JointSymmetries();
+    ifstream is(symmetry_file);
+    if (!is.is_open()) {
+        cerr << "Could not open symmetry file: " << symmetry_file << endl;
+        return JointSymmetries();
+    }
+    return JointSymmetries(is);
 }
 
 int main(int argc, char **argv)
@@ -86,6 +103,9 @@ int main(int argc, char **argv)
     }
     JointSensorMap jsm(jsmstream);
 
+    // Read symmetries.
+    const JointSymmetries joint_symmetries = createJointSymmetries(programOptions.symmetry_file);
+
     // Read IMU accumulates.
     vector<shared_ptr<LIR::IMUAccumulates>> imuAccumulates;
     imuAccumulates.reserve(programOptions.num_sensors);
@@ -108,7 +128,7 @@ int main(int argc, char **argv)
     }
 
     /** Output data rate. The output data rate of the sensors is configured to be
-        200Hz. This is not the frequency with which the recorder quries the sensor
+        200Hz. This is not the frequency with which the recorder queries the sensor
         boards. Thus, the time differences between two samples can be substantially
         larger than 1/200 seconds. */
     const double odr = 200.0;
@@ -128,7 +148,7 @@ int main(int argc, char **argv)
 
     vector<TimedSensorStateRun> imuTrajectories;
     compute_initial_hinge_axes_guess(imuAccumulates, jsm, stddevs);
-    calibrate_displacements(imuAccumulates, imuTrajectories, jsm, stddevs);
+    calibrate_displacements(imuAccumulates, imuTrajectories, jsm, stddevs, joint_symmetries);
 
     jsm.save(jsmostream);
     for (int i = 0; i < programOptions.num_sensors; ++i) {
