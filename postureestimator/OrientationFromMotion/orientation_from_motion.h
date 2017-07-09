@@ -12,6 +12,7 @@
 
 class OrientationFromMotion {
     const int numSensors;
+    const int maxIterations;
 
     /** Distribution parameters. */
     SensorState *sensors;
@@ -40,7 +41,7 @@ class OrientationFromMotion {
     void measurement_model(const SensorState * const sensors, VectorXf& expectedMeas, MatrixXf& jacobianHx, MatrixXf& jacobianHo, const Vector3f * const ws) const;
     void compute_hinge_constraint_measurement_variance(Eigen::Ref<MatrixXf> cov, const float timescale);
 public:
-    OrientationFromMotion(int numSensors, const JointSensorMap& jsm, const Variances& variances);
+    OrientationFromMotion(int numSensors, const JointSensorMap& jsm, const Variances& variances, int maxIterations = 1);
     ~OrientationFromMotion();
     bool vectorization() const;
 
