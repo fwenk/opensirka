@@ -785,13 +785,12 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
     }
 
     // Add pseudo-measurements of bodies which should have equal lengths.
-    // TODO: Add the standard deviation to the parameters.
     for (const Symmetry& s : symmetries) {
         assert(jointLocations[s.a.preceeding_joint_id].succ_sensor_id == s.a.body_id);
         assert(jointLocations[s.a.succeeding_joint_id].pred_sensor_id == s.a.body_id);
         assert(jointLocations[s.b.preceeding_joint_id].succ_sensor_id == s.b.body_id);
         assert(jointLocations[s.b.succeeding_joint_id].pred_sensor_id == s.b.body_id);
-        problem.AddResidualBlock(BodyLengthEqualityConstraint::Create(3e-2), NULL,
+        problem.AddResidualBlock(BodyLengthEqualityConstraint::Create(stddevs.symmetric_body_length_difference), NULL,
             jointLocations[s.a.preceeding_joint_id].r_jointInSuccessor, jointLocations[s.a.succeeding_joint_id].r_jointInPredecessor,
             jointLocations[s.b.preceeding_joint_id].r_jointInSuccessor, jointLocations[s.b.succeeding_joint_id].r_jointInPredecessor);
     }
