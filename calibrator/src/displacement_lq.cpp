@@ -740,7 +740,8 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
 
                 if (is_hinge && calibrate_with_hinges) {
                     assert (hinge != hingeMap.end());
-                    const double hingeaxis_stddev = stddevs.joint_axis_difference * sqrt(1.0 + 2.0 * stddevs.joint_velocity_difference_decorrelation_time / deltaT);
+                    const double hingeaxis_stddev = stddevs.joint_axis_difference
+                        * sqrt(1.0 + 2.0 * stddevs.joint_axis_difference_decorrelation_time / deltaT);
                     problem.AddResidualBlock(HingeConstraint1D::Create(hingeaxis_stddev), NULL,
                                              state_itpred->q_imuInWorld,
                                              state_itsucc->q_imuInWorld,
