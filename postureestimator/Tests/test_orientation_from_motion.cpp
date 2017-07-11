@@ -545,7 +545,7 @@ BOOST_AUTO_TEST_CASE(measurement_update_test)
     }
     // Do the update
     ofm.measurement_update(ws, deltaT);
-    // Compute posterious probabilities from updated filter distribution
+    // Compute posterior probabilities from updated filter distribution
     const Eigen::LLT<MatrixXf> updated_ofm_covariance_solver = ofm.covariance.llt();
     float updated_sample_px[dimension][numSamples]; // Should be sample_p(x|z) = sample_pxz
     VectorXf diff(numSensors * SensorState::DOF);
