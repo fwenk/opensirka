@@ -47,20 +47,25 @@ osg::Geode *create_sensor_geode()
     return sensor_geode;
 }
 
-osg::Geode *create_joint_sensor_connector(const JointSensorMap& jsm, const unsigned joint_idx, const bool tosuccessor)
+osg::Geode *create_connector(float length, float thickness, const osg::Vec4& color)
 {
-    const Eigen::Vector3f& jointInSensor
-        = tosuccessor ? jsm.sensors[joint_idx].back().jointInSensor : jsm.sensors[joint_idx].front().jointInSensor;
-    osg::Shape *cylinder_shape = new osg::Cylinder(osg::Vec3f(0.0f, 0.0f, 0.0f), 0.0025f, jointInSensor.norm());
+    osg::Shape *cylinder_shape = new osg::Cylinder(osg::Vec3f(0.0f, 0.0f, 0.0f), thickness, length);
     cylinder_shape->setDataVariance(osg::Object::STATIC);
     osg::ShapeDrawable *cylinder = new osg::ShapeDrawable(cylinder_shape);
-    cylinder->setColor(osg::Vec4(0.0, 0.0, 1.0, 0.7));
+    cylinder->setColor(color);
     cylinder->setDataVariance(osg::Object::STATIC);
 
     osg::Geode *geode = new osg::Geode;
     geode->addDrawable(cylinder);
     geode->setDataVariance(osg::Object::STATIC);
     return geode;
+}
+
+osg::Geode *create_joint_sensor_connector(const JointSensorMap& jsm, const unsigned joint_idx, const bool tosuccessor)
+{
+    const Eigen::Vector3f& jointInSensor
+        = tosuccessor ? jsm.sensors[joint_idx].back().jointInSensor : jsm.sensors[joint_idx].front().jointInSensor;
+    return create_connector(jointInSensor.norm(), 0.0025f, osg::Vec4(0.0, 0.0, 1.0, 0.7));
 }
 
 template <unsigned long n>
@@ -256,6 +261,32 @@ void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientat
         connector_with_pred->addUpdateCallback(new UpdateJointSensorConnector(joint_pos[k], sensor_pos[pidx]));
         root->addChild(connector_with_pred);
     }
+    /* Create connections between adjacent joints. */
+    for (unsigned k=0; k<n-1; ++k) {
+        const SensorLocation& kpred = jsm.sensors[k].front();
+        const SensorLocation& ksucc = jsm.sensors[k].back();
+        for (unsigned l=k+1; l<n-1; ++l) {
+            const SensorLocation& lpred = jsm.sensors[l].front();
+            const SensorLocation& lsucc = jsm.sensors[l].back();
+            Eigen::Vector3f delta;
+            if (kpred.sensorId == lpred.sensorId)
+                delta = kpred.jointInSensor - lpred.jointInSensor;
+            else if (kpred.sensorId == lsucc.sensorId)
+                delta = kpred.jointInSensor - lsucc.jointInSensor;
+            else if (ksucc.sensorId == lpred.sensorId)
+                delta = ksucc.jointInSensor - lpred.jointInSensor;
+            else if (ksucc.sensorId == lsucc.sensorId)
+                delta = ksucc.jointInSensor - lsucc.jointInSensor;
+            else
+                continue;
+            osg::Geode *connector_geode = create_connector(delta.norm(), 0.0035f, osg::Vec4(1.0, 0.0, 0.0, 0.7));
+            osg::PositionAttitudeTransform *connector = new osg::PositionAttitudeTransform;
+            connector->addChild(connector_geode);
+            connector->addUpdateCallback(new UpdateJointSensorConnector(joint_pos[k], joint_pos[l]));
+            root->addChild(connector);
+        }
+    }
+
 
     /* Create osg viewer and render scene graph. */
     osgViewer::Viewer viewer;
