@@ -215,6 +215,54 @@ public:
     }
 };
 
+class JointToJointConnectorSwitcher : public osg::NodeCallback
+{
+    bool laststate, state;
+public:
+    JointToJointConnectorSwitcher(bool state) : laststate(state), state(state) {}
+
+    void operator()(osg::Node *node, osg::NodeVisitor *nv)
+    {
+        osg::Switch *switcher = static_cast<osg::Switch *>(node);
+        if (laststate != state) {
+            if (state)
+                switcher->setAllChildrenOn();
+            else
+                switcher->setAllChildrenOff();
+            laststate = state;
+        }
+        traverse(node, nv);
+    }
+
+    void toggle()
+    {
+        state = !state;
+    }
+};
+
+class JointToJointConnectorSwitchEvent : public osgGA::GUIEventHandler
+{
+    JointToJointConnectorSwitcher * const switcher;
+public:
+    JointToJointConnectorSwitchEvent(JointToJointConnectorSwitcher *switcher) : switcher(switcher) { assert(switcher); }
+
+    bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
+    {
+        switch (ea.getEventType()) {
+        case osgGA::GUIEventAdapter::KEYDOWN:
+            switch (ea.getKey()) {
+            case 'j':
+                switcher->toggle();
+                return true;
+            default:
+                return false;
+            }
+        default:
+            return false;
+        }
+    }
+};
+
 template <unsigned long n>
 void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientationf>, n>& sso)
 {
@@ -261,7 +309,16 @@ void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientat
         connector_with_pred->addUpdateCallback(new UpdateConnector(joint_pos[k], sensor_pos[pidx]));
         root->addChild(connector_with_pred);
     }
-    /* Create connections between adjacent joints. */
+    /* Create connections between adjacent joints.
+       The parent of all these connections in the scene graph is
+       a switch node. The switch node is used to turn off
+       rendering the joint connections upon a button press. */
+    osg::Switch *osgswitch = new osg::Switch;
+    root->addChild(osgswitch);
+    osg::Group *joint_connectors = new osg::Group;
+    osgswitch->addChild(joint_connectors, false);
+    JointToJointConnectorSwitcher *switcher = new JointToJointConnectorSwitcher(false);
+    osgswitch->addUpdateCallback(switcher);
     for (unsigned k=0; k<n-1; ++k) {
         const SensorLocation& kpred = jsm.sensors[k].front();
         const SensorLocation& ksucc = jsm.sensors[k].back();
@@ -283,7 +340,7 @@ void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientat
             osg::PositionAttitudeTransform *connector = new osg::PositionAttitudeTransform;
             connector->addChild(connector_geode);
             connector->addUpdateCallback(new UpdateConnector(joint_pos[k], joint_pos[l]));
-            root->addChild(connector);
+            joint_connectors->addChild(connector);
         }
     }
 
@@ -302,6 +359,7 @@ void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientat
     camera->setClearColor(osg::Vec4(1.0f,1.0f,1.0f,0.0f));
 
     viewer.setSceneData(root);
+    viewer.addEventHandler(new JointToJointConnectorSwitchEvent(switcher));
     viewer.run();
 }
 
