@@ -333,11 +333,11 @@ struct HingeError {
 
         T omega_perp_succ[3];
         ceres::CrossProduct(omega_succ, axis_inSucc, omega_perp_succ);
-        T omega_perp_succ_norm = sqrt(ceres::DotProduct(omega_perp_succ, omega_perp_succ));
+        T omega_perp_succ_norm2 = ceres::DotProduct(omega_perp_succ, omega_perp_succ);
         T omega_perp_pred[3];
         ceres::CrossProduct(omega_pred, axis_inPred, omega_perp_pred);
-        T omega_perp_pred_norm = sqrt(ceres::DotProduct(omega_perp_pred, omega_perp_pred));
-        residual[0] = omega_perp_succ_norm - omega_perp_pred_norm;
+        T omega_perp_pred_norm2 = ceres::DotProduct(omega_perp_pred, omega_perp_pred);
+        residual[0] = omega_perp_succ_norm2 - omega_perp_pred_norm2;
 
         return true;
     }
