@@ -686,7 +686,7 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
     }
 
     // Add pseudo-measurements for all sensor coupled by joints.
-    const long syncusecs = 500; // Microseconds states may be apart in time are still considered 'synchronous'.
+    const long syncusecs = 10000; // Microseconds states may be apart in time are still considered 'synchronous'.
     HingeMap hingeMap;
     JointLocations jointLocations;
     jointLocations.reserve(jsm.numJoints);

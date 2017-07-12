@@ -142,7 +142,7 @@ int main(int argc, char **argv)
     stddevs.joint_velocity_difference = 0.1;
     stddevs.joint_velocity_difference_decorrelation_time = 0.1;
     stddevs.joint_axis_difference = 0.125*sqrt(2.0);
-    stddevs.joint_axis_difference_decorrelation_time = 0.1;
+    stddevs.joint_axis_difference_decorrelation_time = 1.0;
     stddevs.velocity = 0.1;
     stddevs.velocity_decorrelation_time = 5;
     stddevs.symmetric_body_length_difference = 3e-2;
