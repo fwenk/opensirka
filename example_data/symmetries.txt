@@ -1,0 +1,7 @@
+# Joint Symmetries.
+# Specify pairs of joints which should have approximately the same distance,
+# i.e. distance(pred_a, succ_a) approx. distance(pred_b, succ_b)
+# Format: <body_a> <pred_a> <succ_a> <body_b> <pred_b> <succ_b>
+1 1 0 3 2 3
+6 9 10 14 12 13
+7 8 9 9 11 12
