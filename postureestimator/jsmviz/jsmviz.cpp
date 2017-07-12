@@ -130,29 +130,29 @@ void compute_joint_and_sensor_positions(const JointSensorMap& jsm,
     assert(computed_sensor[n-1]);
 }
 
-class UpdateJointSensorConnector : public osg::NodeCallback
+class UpdateConnector : public osg::NodeCallback
 {
-    const std::shared_ptr<Eigen::Vector3f>& joint_position;
-    const std::shared_ptr<Eigen::Vector3f>& sensor_position;
+    const std::shared_ptr<Eigen::Vector3f>& position_a;
+    const std::shared_ptr<Eigen::Vector3f>& position_b;
 public:
-    UpdateJointSensorConnector(const std::shared_ptr<Eigen::Vector3f>& joint_position,
-                               const std::shared_ptr<Eigen::Vector3f>& sensor_position)
-    : joint_position(joint_position), sensor_position(sensor_position)
+    UpdateConnector(const std::shared_ptr<Eigen::Vector3f>& position_a,
+                    const std::shared_ptr<Eigen::Vector3f>& position_b)
+    : position_a(position_a), position_b(position_b)
     {}
 
     virtual void operator()(osg::Node *node, osg::NodeVisitor *nv)
     {
-        if (!joint_position || !sensor_position)
+        if (!position_a || !position_b)
             return;
 
-        const Eigen::Vector3f& spos = *sensor_position;
-        const Eigen::Vector3f& jpos = *joint_position;
+        const Eigen::Vector3f& bpos = *position_b;
+        const Eigen::Vector3f& apos = *position_a;
 
         osg::PositionAttitudeTransform *pose = dynamic_cast<osg::PositionAttitudeTransform *>(node);
-        const Eigen::Vector3f delta = spos - jpos;
+        const Eigen::Vector3f delta = bpos - apos;
         const float zsign = (delta.z() > 0.0f) - (delta.z() < 0.0f);
         const float dlen = delta.norm();
-        const Eigen::Vector3f center = jpos + delta / 2.0;
+        const Eigen::Vector3f center = apos + delta / 2.0;
         const float alen = sqrt(delta.x()*delta.x() + delta.y()*delta.y());
         if (fabs(alen) > 0.1f/180.0f*M_PI) {
             osg::Vec3 axis(-delta.y() / alen, delta.x() / alen, 0.0f);
@@ -251,14 +251,14 @@ void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientat
         const unsigned sidx = locs.back().sensorId;
         osg::Geode *succ = create_joint_sensor_connector(jsm, k, true);
         connector_with_succ->addChild(succ);
-        connector_with_succ->addUpdateCallback(new UpdateJointSensorConnector(joint_pos[k], sensor_pos[sidx]));
+        connector_with_succ->addUpdateCallback(new UpdateConnector(joint_pos[k], sensor_pos[sidx]));
         root->addChild(connector_with_succ);
 
         osg::PositionAttitudeTransform *connector_with_pred = new osg::PositionAttitudeTransform;
         const unsigned pidx = locs.front().sensorId;
         osg::Geode *pred = create_joint_sensor_connector(jsm, k, false);
         connector_with_pred->addChild(pred);
-        connector_with_pred->addUpdateCallback(new UpdateJointSensorConnector(joint_pos[k], sensor_pos[pidx]));
+        connector_with_pred->addUpdateCallback(new UpdateConnector(joint_pos[k], sensor_pos[pidx]));
         root->addChild(connector_with_pred);
     }
     /* Create connections between adjacent joints. */
@@ -282,7 +282,7 @@ void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientat
             osg::Geode *connector_geode = create_connector(delta.norm(), 0.0035f, osg::Vec4(1.0, 0.0, 0.0, 0.7));
             osg::PositionAttitudeTransform *connector = new osg::PositionAttitudeTransform;
             connector->addChild(connector_geode);
-            connector->addUpdateCallback(new UpdateJointSensorConnector(joint_pos[k], joint_pos[l]));
+            connector->addUpdateCallback(new UpdateConnector(joint_pos[k], joint_pos[l]));
             root->addChild(connector);
         }
     }
