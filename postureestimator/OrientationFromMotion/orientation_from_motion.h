@@ -17,6 +17,7 @@ class OrientationFromMotion {
     /** Distribution parameters. */
     SensorState *sensors;
     MatrixXf covariance;
+    bool initialized;
 
     /** Jacobians of the dynamic and measurement model. */
     MatrixXf jacobianA; /**< Dynamic model derived by the state. */
@@ -52,6 +53,7 @@ public:
     void covariance_for_accumulate(Matrix6f& covariance, const Accumulate& a);
 
     void initialize(const SensorState initialStates[], const MatrixXf initialSensorCovariances[]);
+    void initialize_from_first_accumulates(const Accumulate * const as);
     void dynamic_update(const Accumulate * const as);
     void measurement_update(const Vector3f * const ws, const float deltaT);
 
