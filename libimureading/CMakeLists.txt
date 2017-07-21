@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} )
 MESSAGE(STATUS ${EIGEN3_VERSION})
 
 ADD_DEFINITIONS(
-    -std=c++17
+    -std=c++11
 )
 
 file(GLOB imureading_src src/*.cpp src/*.h)
