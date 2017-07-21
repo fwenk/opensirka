@@ -21,10 +21,10 @@ cmake -DCMAKE_INSTALL_PREFIX=~/delete_me/demo_installation \
 ```
 The generated Makefiles are then used to build and install:
 ```
-make install
+$ make install
 ```
 
-## Build and install the calibrator
+## Build the calibrator
 If you just want to see the estimator work on the example data, you can skip this, because the calibration results are provided with the examples data.
 ### Dependencies
 TODO: List dependencies
@@ -33,11 +33,21 @@ TODO: Build and install instructions
 ### Usage
 TODO: Usage instructions.
 
-## Build and install the posture estimator
+## Build the posture estimator
 ### Dependencies
-TODO: List dependencies
+You need all the dependencies of libimureading, libimureading itself and OpenSceneGraph.
 ### Building
-TODO: Build and install instructions
+You know the drill by know; in the OpenSirka-Repository, create a build directory inside the [postureestimator](postureestimator/) directory. Change into the build directory and create Makefiles. If you specified the install prefix when building the libimureading library, you need to specify it here as the imu reading prefix.
+```
+cmake -DCMAKE_BUILD_TYPE=Release \
+-DIMU_READING_PREFIX=~/delete_me/demo_installation \
+-G "Unix Makefiles" ../
+```
+Build it with
+```
+make
+```
+This should have produced a binary called `M2AccuReplay`, which contains a small driver program for the posture estimator.
 ### Usage
 TODO: Usage instructions.
 
