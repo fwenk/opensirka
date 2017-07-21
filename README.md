@@ -10,9 +10,19 @@ There are three components to build and install. [libimureading](libimureading/)
 
 ## Build and install libimureading
 ### Dependencies
-TODO: List dependencies
+You need the usual compilers and standard libraries as well as cmake, boost and Eigen. Building has been tested both on mac os and Linux (Fedora 25).
 ### Building
-TODO: Build and install instructions
+In a freshly cloned repository, create a build directory inside the [libimureading](libimureading/) directory. Change into the build directory and create Makefiles. Change the install prefix to whatever suits you. On most platforms, `/usr/local` is the default. 
+```
+mkdir libimureading/build
+cd libimureading/build
+cmake -DCMAKE_INSTALL_PREFIX=~/delete_me/demo_installation \
+-DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ../
+```
+The generated Makefiles are then used to build and install:
+```
+make install
+```
 
 ## Build and install the calibrator
 If you just want to see the estimator work on the example data, you can skip this, because the calibration results are provided with the examples data.
