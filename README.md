@@ -34,11 +34,13 @@ TODO: Build and install instructions
 TODO: Usage instructions.
 
 ## Build the posture estimator
+There is a demo [video][3] of installing and starting the posture estimator which approximately follows the instructions below.
 ### Dependencies
 You need all the dependencies of libimureading, libimureading itself and OpenSceneGraph.
 ### Building
 You know the drill by know; in the OpenSirka-Repository, create a build directory inside the [postureestimator](postureestimator/) directory. Change into the build directory and create Makefiles. If you specified the install prefix when building the libimureading library, you need to specify it here as the imu reading prefix.
 ```
+cd postureestimator/build
 cmake -DCMAKE_BUILD_TYPE=Release \
 -DIMU_READING_PREFIX=~/delete_me/demo_installation \
 -G "Unix Makefiles" ../
@@ -49,7 +51,19 @@ make
 ```
 This should have produced a binary called `M2AccuReplay`, which contains a small driver program for the posture estimator.
 ### Usage
-TODO: Usage instructions.
+Still in the build directory, which contains the binary `M2AccuReplay` just created, you can start the posture estimator by specifying the accumulated example sensor data and the location of the calibration.
+```
+./M2AccuReplay --realtime 1 --replay ../../example_data/imu_data \
+--calibrations ../../example_data/output/calibration \
+--initial_orientations ../../example_data/output/calibration
+```
+
+On program start, a window with a rendering of the posture estimate appears. Joints are drawn in red, sensors in green. Joints are connected by blue rods to sensors which are mounted on adjacent bodies. To get a better sense of the skeleton, you may press the `j` key to toggle red connections between adjacent joints.
+
+`--realtime 1` lets the driver program replay the sensor data (approximately) as fast as it was recorded (as opposed to as fast as possible). `--replay <path>` specifies the path to the sensor data, `--calibrations <path>` the path to the output of the calibrator. `--initial_orientations <path>` specifies the path to the directory containing orientations used to initialize the estimator with. These are part of the calibrator's output.
+
+However, specifying initial orientations is optional. If initial orientations are not provided, it is very, very likely that the orientation estimates are wrong in the beginning: The rotations around the vertical axis will be wrong intially. The estimator corrects these errors when the whole skeleton accelerates, e.g. starts and stops to walk. However, as long the the wearer of the suit stands completely still, no such accelerations occur.
 
 [1]: http://www.informatik.uni-bremen.de/agbkb/publikationen/bibsearch/detail_e.htm?pk_int=3372
 [2]: https://www-cps.hb.dfki.de/research/projects/SIRKA
+[3]: https://www.dropbox.com/s/1shwxhybmyamolw/postureestimator_demo_1080.mp4?dl=0
