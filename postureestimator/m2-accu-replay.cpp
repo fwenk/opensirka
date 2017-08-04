@@ -243,7 +243,7 @@ int main(int argc, char **argv)
     SpStringOption log_path(new StringOption(false, "logs", "Path where to store log files."));
     SpStringOption calibration_path(new StringOption(true, "calibrations", "Path to sensor node calibrations."));
     SpStringOption replay_path(new StringOption(true, "replay", "Path to the sensor log files to be replayed."));
-    SpStringOption initial_orient(new StringOption(true, "initial_orientations", "Path where to load the orientation initialization from."));
+    SpStringOption initial_orient(new StringOption(false, "initial_orientations", "Path where to load the orientation initialization from."));
     std::list<SpStringOption> sopts{calibration_path, log_path, replay_path, initial_orient};
 
     std::unique_ptr<CommonOptions> options;
@@ -307,8 +307,10 @@ int main(int argc, char **argv)
     /* Load initial sensor states and covarianes. */
     std::array<SensorState, num_sensors> initial_states;
     std::array<MatrixXf, num_sensors> initial_covars;
-    load_initial_states(initial_states, initial_covars, initial_orient->value);
-    ofm.initialize(initial_states.data(), initial_covars.data());
+    if (initial_orient->set) {
+        load_initial_states(initial_states, initial_covars, initial_orient->value);
+        ofm.initialize(initial_states.data(), initial_covars.data());
+    }
 
     /* Shared orientations to be used by the visulization. */
     std::array<std::shared_ptr<SharedOrientationf>, num_sensors> sso;

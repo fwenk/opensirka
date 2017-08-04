@@ -21,8 +21,7 @@ struct StandardDeviations {
     double joint_axis_difference_decorrelation_time;
     double velocity;
     double velocity_decorrelation_time;
-    double z_variance;
-    double z_decorrelation_time;
+    double symmetric_body_length_difference;
 };
 
 void compute_initial_hinge_axes_guess(
@@ -33,6 +32,7 @@ void calibrate_displacements(
         std::vector<std::shared_ptr<LIR::IMUAccumulates>> readings,
         std::vector<TimedSensorStateRun>& imuTrajectories,
         JointSensorMap& jsm,
-        const struct StandardDeviations& stddevs);
+        const struct StandardDeviations& stddevs,
+        const std::list<Symmetry>& symmetries);
 
 #endif // __DISPLACEMENT_LQ_H_

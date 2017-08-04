@@ -139,6 +139,34 @@ struct RectangularJointAxisJointConstraint
     }
 };
 
+struct BodyLengthEqualityConstraint
+{
+    double distanceSquaredStddev;
+    BodyLengthEqualityConstraint(const double distanceStddev)
+    : distanceSquaredStddev(sqrt(2) * distanceStddev * distanceStddev)
+    {}
+
+    template <typename T>
+    bool operator()(const T *r_predInSensorA, const T *r_succInSensorA,
+                    const T *r_predInSensorB, const T *r_succInSensorB,
+                    T *residual) const {
+        T deltaA[3];
+        T deltaB[3];
+        for (unsigned d = 0; d < 3; ++d) {
+            deltaA[d] = r_succInSensorA[d] - r_predInSensorA[d];
+            deltaB[d] = r_succInSensorB[d] - r_predInSensorB[d];
+        }
+        const T distanceASq = ceres::DotProduct(deltaA, deltaA);
+        const T distanceBSq = ceres::DotProduct(deltaB, deltaB);
+        residual[0] = (distanceBSq - distanceASq) / T(distanceSquaredStddev);
+        return true;
+    }
+
+    static ceres::CostFunction *Create(double distanceStddev) {
+        return new ceres::AutoDiffCostFunction<BodyLengthEqualityConstraint, 1, 3, 3, 3, 3>(new BodyLengthEqualityConstraint(distanceStddev));
+    }
+};
+
 struct JointConstraintPrior
 {
     const Eigen::Vector3d& angular_velocity_pred;
@@ -305,11 +333,11 @@ struct HingeError {
 
         T omega_perp_succ[3];
         ceres::CrossProduct(omega_succ, axis_inSucc, omega_perp_succ);
-        T omega_perp_succ_norm = sqrt(ceres::DotProduct(omega_perp_succ, omega_perp_succ));
+        T omega_perp_succ_norm2 = ceres::DotProduct(omega_perp_succ, omega_perp_succ);
         T omega_perp_pred[3];
         ceres::CrossProduct(omega_pred, axis_inPred, omega_perp_pred);
-        T omega_perp_pred_norm = sqrt(ceres::DotProduct(omega_perp_pred, omega_perp_pred));
-        residual[0] = omega_perp_succ_norm - omega_perp_pred_norm;
+        T omega_perp_pred_norm2 = ceres::DotProduct(omega_perp_pred, omega_perp_pred);
+        residual[0] = omega_perp_succ_norm2 - omega_perp_pred_norm2;
 
         return true;
     }
@@ -422,7 +450,7 @@ struct CeresJointLocation {
     double r_jointInPredecessor[3];
     double r_jointInSuccessor[3];
 };
-typedef std::list<CeresJointLocation> JointLocations;
+typedef std::vector<CeresJointLocation> JointLocations;
 
 struct CeresJointAxis {
     unsigned pred_sensor_id;
@@ -515,6 +543,7 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
                     std::vector<TimedSensorStateRun>& imuTrajectories,
                     JointSensorMap& jsm,
                     const struct StandardDeviations& stddevs,
+                    const std::list<Symmetry>& symmetries,
                     bool calibrate_with_hinges)
 {
 #if 0
@@ -657,9 +686,10 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
     }
 
     // Add pseudo-measurements for all sensor coupled by joints.
-    const long syncusecs = 500; // Microseconds states may be apart in time are still considered 'synchronous'.
+    const long syncusecs = 10000; // Microseconds states may be apart in time are still considered 'synchronous'.
     HingeMap hingeMap;
     JointLocations jointLocations;
+    jointLocations.reserve(jsm.numJoints);
     for (unsigned j = 0; j < jsm.numJoints; ++j) {
         const JointSensorMap::JointSensors& jointSensors = jsm.sensors[j];
         const SensorLocation& predecessor = jointSensors.predecessor();
@@ -740,7 +770,8 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
 
                 if (is_hinge && calibrate_with_hinges) {
                     assert (hinge != hingeMap.end());
-                    const double hingeaxis_stddev = stddevs.joint_axis_difference * sqrt(1.0 + 2.0 * stddevs.joint_velocity_difference_decorrelation_time / deltaT);
+                    const double hingeaxis_stddev = stddevs.joint_axis_difference
+                        * sqrt(1.0 + 2.0 * stddevs.joint_axis_difference_decorrelation_time / deltaT);
                     problem.AddResidualBlock(HingeConstraint1D::Create(hingeaxis_stddev), NULL,
                                              state_itpred->q_imuInWorld,
                                              state_itsucc->q_imuInWorld,
@@ -751,6 +782,17 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
                 }
             }
         }
+    }
+
+    // Add pseudo-measurements of bodies which should have equal lengths.
+    for (const Symmetry& s : symmetries) {
+        assert(jointLocations[s.a.preceeding_joint_id].succ_sensor_id == s.a.body_id);
+        assert(jointLocations[s.a.succeeding_joint_id].pred_sensor_id == s.a.body_id);
+        assert(jointLocations[s.b.preceeding_joint_id].succ_sensor_id == s.b.body_id);
+        assert(jointLocations[s.b.succeeding_joint_id].pred_sensor_id == s.b.body_id);
+        problem.AddResidualBlock(BodyLengthEqualityConstraint::Create(stddevs.symmetric_body_length_difference), NULL,
+            jointLocations[s.a.preceeding_joint_id].r_jointInSuccessor, jointLocations[s.a.succeeding_joint_id].r_jointInPredecessor,
+            jointLocations[s.b.preceeding_joint_id].r_jointInSuccessor, jointLocations[s.b.succeeding_joint_id].r_jointInPredecessor);
     }
 
     ceres::Solver::Options options;
@@ -820,7 +862,8 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
 void calibrate_displacements(std::vector<std::shared_ptr<LIR::IMUAccumulates>> readings,
                              std::vector<TimedSensorStateRun>& imuTrajectories,
                              JointSensorMap& jsm,
-                             const struct StandardDeviations& stddevs)
+                             const struct StandardDeviations& stddevs,
+                             const std::list<Symmetry>& symmetries)
 {
     const unsigned numSensors = readings.size();
     /* Compute the set of difference accumulates for each sensor.
@@ -848,7 +891,7 @@ void calibrate_displacements(std::vector<std::shared_ptr<LIR::IMUAccumulates>> r
         assert (deltas.size() == avelrun.size());
     }
 
-    run_calibrator(accumulateDeltaRuns, angularVelocityRuns, imuTrajectories, jsm, stddevs, false);
+    run_calibrator(accumulateDeltaRuns, angularVelocityRuns, imuTrajectories, jsm, stddevs, symmetries, false);
     // Check joint axes.
     for (unsigned j = 0; j < jsm.numJoints; ++j) {
         JointSensorMap::JointSensors& js = jsm.sensors[j];
@@ -878,5 +921,5 @@ void calibrate_displacements(std::vector<std::shared_ptr<LIR::IMUAccumulates>> r
             }
         } while (angle > M_PI_2);
     }
-    run_calibrator(accumulateDeltaRuns, angularVelocityRuns, imuTrajectories, jsm, stddevs, true);
+    run_calibrator(accumulateDeltaRuns, angularVelocityRuns, imuTrajectories, jsm, stddevs, symmetries, true);
 }

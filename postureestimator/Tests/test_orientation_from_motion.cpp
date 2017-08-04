@@ -322,8 +322,11 @@ BOOST_AUTO_TEST_CASE(dynamic_update_simple_test)
     variances.hinge_axis_variance = 0.125f*0.125f;
     variances.hinge_axis_decorrelation_time = 1.0f;
 
-    const int numSensors = 2;
+    constexpr int numSensors = 2;
+    SensorState initial_states[numSensors];
+    const MatrixXf initial_covariances[numSensors] = { Matrix9f::Identity(), Matrix9f::Identity() };
     OrientationFromMotion ofm(numSensors, jsm, variances);
+    ofm.initialize(initial_states, initial_covariances);
 
     // Very simple test, which should lead to a proper covariance structure.
     const Vector3f gravity(0.0f, 0.0f, -9.81f);
@@ -487,13 +490,15 @@ BOOST_AUTO_TEST_CASE(measurement_update_test)
     const MatrixXf measurement_variance = measurement_variance_diag.asDiagonal();
     const Eigen::LLT<MatrixXf> measurement_variance_solver = measurement_variance.llt();
 
-
     OrientationFromMotion ofm(numSensors, jsm, variances);
-    // Initilize orientation from motion to a circular motion
     const SensorLocation& sl1 = ofm.jsm.sensors[0].front();
     const SensorLocation& sl2 = ofm.jsm.sensors[0].back();
-    ofm.sensors[sl1.sensorId].v = omega.cross(-sl1.jointInSensor); // '-' because of sensorInJoint
-    ofm.sensors[sl2.sensorId].v = omega.cross(-sl2.jointInSensor); // '-' because of sensorInJoint
+    // Initialize orientation from motion to a circular motion
+    SensorState initial_states[numSensors];
+    initial_states[sl1.sensorId].v = omega.cross(-sl1.jointInSensor); // '-' because of sensorInJoint
+    initial_states[sl2.sensorId].v = omega.cross(-sl2.jointInSensor); // '-' because of sensorInJoint
+    const MatrixXf initial_covariances[numSensors] = { Matrix9f::Identity(), Matrix9f::Identity() };
+    ofm.initialize(initial_states, initial_covariances);
 
     const Vector3f motionaccel1 = omega.cross(ofm.sensors[sl1.sensorId].v);
     const Vector3f motionaccel2 = omega.cross(ofm.sensors[sl2.sensorId].v);
@@ -545,7 +550,7 @@ BOOST_AUTO_TEST_CASE(measurement_update_test)
     }
     // Do the update
     ofm.measurement_update(ws, deltaT);
-    // Compute posterious probabilities from updated filter distribution
+    // Compute posterior probabilities from updated filter distribution
     const Eigen::LLT<MatrixXf> updated_ofm_covariance_solver = ofm.covariance.llt();
     float updated_sample_px[dimension][numSamples]; // Should be sample_p(x|z) = sample_pxz
     VectorXf diff(numSensors * SensorState::DOF);

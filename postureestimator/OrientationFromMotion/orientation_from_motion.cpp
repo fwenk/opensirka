@@ -15,8 +15,8 @@
 #include <MathHelper/crossx.h>
 #include <MathHelper/sphere.h>
 
-OrientationFromMotion::OrientationFromMotion(int numSensors, const JointSensorMap& jsm, const Variances& variances)
-: numSensors(numSensors), sensors(new SensorState[numSensors]),
+OrientationFromMotion::OrientationFromMotion(int numSensors, const JointSensorMap& jsm, const Variances& variances, int maxIterations)
+: numSensors(numSensors), maxIterations(maxIterations), initialized(false), sensors(new SensorState[numSensors]),
   covariance(MatrixXf::Identity(numSensors * SensorState::DOF, numSensors * SensorState::DOF)),
   jacobianA(numSensors * SensorState::DOF, numSensors * SensorState::DOF),
   jacobianB(numSensors * SensorState::DOF, numSensors * Accumulate::DOF),
@@ -176,10 +176,41 @@ void OrientationFromMotion::initialize(const SensorState initialStates[], const 
         this->sensors[i] = initialStates[i];
         this->covariance.block<SensorState::DOF,SensorState::DOF>(i * SensorState::DOF, i * SensorState::DOF) = initialSensorCovariances[i];
     }
+    initialized = true;
+}
+
+void OrientationFromMotion::initialize_from_first_accumulates(const Accumulate * const as)
+{
+    Matrix3f proto_Q_covar = Matrix3f::Zero();
+    proto_Q_covar(0,0) = 5.0f/180.0f * M_PI * 5.0f/180.0f * M_PI;
+    proto_Q_covar(1,1) = 5.0f/180.0f * M_PI * 5.0f/180.0f * M_PI;
+    proto_Q_covar(2,2) = 25.0f/180.0f * M_PI * 25.0f/180.0f * M_PI;
+    const Matrix3f proto_v_covar = Matrix3f::Identity();
+    const Matrix3f proto_b_covar = Matrix3f::Identity() * (0.014f * M_PI / 180.0f)*(0.014f * M_PI / 180.0f);
+
+    for (int i = 0; i < numSensors; ++i) {
+        const Vector3f& v_inImu = as[i].v;
+        Vector3f v_inWorld;
+        v_inWorld << 0.0f, 0.0f, v_inImu.norm();
+        Eigen::Quaternionf q_imuInWorld;
+        q_imuInWorld.setFromTwoVectors(v_inImu, v_inWorld);
+        sensors[i].Q = q_imuInWorld.toRotationMatrix();
+        sensors[i].v = Vector3f::Zero();
+        sensors[i].b = Vector3f::Zero();
+        covariance.block<3, 3>(i * SensorState::DOF, i * SensorState::DOF) = sensors[i].Q * proto_Q_covar * sensors[i].Q.transpose();
+        covariance.block<3, 3>(i * SensorState::DOF + 3, i * SensorState::DOF + 3) = proto_v_covar;
+        covariance.block<3, 3>(i * SensorState::DOF + 6, i * SensorState::DOF + 6) = proto_b_covar;
+    }
+    initialized = true;
 }
 
 void OrientationFromMotion::dynamic_update(const Accumulate *const as)
 {
+    if (!initialized) {
+        initialize_from_first_accumulates(as);
+        return;
+    }
+
     // TODO: Optimize by expanding more by hand, avoiding numerous multiplications by 0.
 
     // Dynamic model which updates the state.
@@ -219,14 +250,30 @@ void OrientationFromMotion::measurement_update(const Vector3f *const ws, const f
     measurement_model(expectedMeasurement, jacobianHx, jacobianHo, ws);
     /* Make the pseudo-measurement of the global heading equal to the current global heading. */
     expectedMeasurement.tail<1>()[0] = 0.0f;
-    const MatrixXf covZX = jacobianHx * covariance;
-    const MatrixXf covZZ = covZX * jacobianHx.transpose() + jacobianHo * variances.angular_velocity * jacobianHo.transpose() + measurement_variance;
+    SensorState startstates[numSensors];
+    for (unsigned k = 0; k < numSensors; ++k)
+        startstates[k] = sensors[k];
 
-    const Eigen::LDLT<MatrixXf> cholCovZZ = covZZ.ldlt();
-    const MatrixXf K = cholCovZZ.solve(covZX).transpose();
-    const VectorXf increment = - K * expectedMeasurement;
+    const MatrixXf identity = MatrixXf::Identity(SensorState::DOF * numSensors, SensorState::DOF * numSensors);
+    VectorXf deltaState(SensorState::DOF * numSensors);
+    MatrixXf K, covZX;
+    const MatrixXf covYY = jacobianHo * variances.angular_velocity * jacobianHo.transpose() + measurement_variance;
+    for (unsigned k = 0;; ++k) {
+        covZX = jacobianHx * covariance;
+        const MatrixXf covZZ = covZX * jacobianHx.transpose() + covYY;
 
-    arraybplus(sensors, increment, numSensors);
+        const Eigen::LDLT<MatrixXf> cholCovZZ = covZZ.ldlt();
+        K = cholCovZZ.solve(covZX).transpose();
+        VectorXf increment = - K * expectedMeasurement;
+        arraybminus(deltaState, startstates, sensors, numSensors);
+        increment += (identity - K * jacobianHx) * deltaState;
+        arraybplus(sensors, increment, numSensors);
+        float squaredIncrementNorm = increment.squaredNorm();
+        if (squaredIncrementNorm < 1e-4f || k == maxIterations-1)
+            break;
+        measurement_model(expectedMeasurement, jacobianHx, jacobianHo, ws);
+        expectedMeasurement.tail<1>()[0] = 0.0f;
+    }
     covariance -= K * covZX;
     const MatrixXf covT = covariance.transpose();
     covariance += covT;

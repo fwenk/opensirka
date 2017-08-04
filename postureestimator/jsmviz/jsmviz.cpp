@@ -47,20 +47,25 @@ osg::Geode *create_sensor_geode()
     return sensor_geode;
 }
 
-osg::Geode *create_joint_sensor_connector(const JointSensorMap& jsm, const unsigned joint_idx, const bool tosuccessor)
+osg::Geode *create_connector(float length, float thickness, const osg::Vec4& color)
 {
-    const Eigen::Vector3f& jointInSensor
-        = tosuccessor ? jsm.sensors[joint_idx].back().jointInSensor : jsm.sensors[joint_idx].front().jointInSensor;
-    osg::Shape *cylinder_shape = new osg::Cylinder(osg::Vec3f(0.0f, 0.0f, 0.0f), 0.0025f, jointInSensor.norm());
+    osg::Shape *cylinder_shape = new osg::Cylinder(osg::Vec3f(0.0f, 0.0f, 0.0f), thickness, length);
     cylinder_shape->setDataVariance(osg::Object::STATIC);
     osg::ShapeDrawable *cylinder = new osg::ShapeDrawable(cylinder_shape);
-    cylinder->setColor(osg::Vec4(0.0, 0.0, 1.0, 0.7));
+    cylinder->setColor(color);
     cylinder->setDataVariance(osg::Object::STATIC);
 
     osg::Geode *geode = new osg::Geode;
     geode->addDrawable(cylinder);
     geode->setDataVariance(osg::Object::STATIC);
     return geode;
+}
+
+osg::Geode *create_joint_sensor_connector(const JointSensorMap& jsm, const unsigned joint_idx, const bool tosuccessor)
+{
+    const Eigen::Vector3f& jointInSensor
+        = tosuccessor ? jsm.sensors[joint_idx].back().jointInSensor : jsm.sensors[joint_idx].front().jointInSensor;
+    return create_connector(jointInSensor.norm(), 0.0025f, osg::Vec4(0.0, 0.0, 1.0, 0.7));
 }
 
 template <unsigned long n>
@@ -125,29 +130,29 @@ void compute_joint_and_sensor_positions(const JointSensorMap& jsm,
     assert(computed_sensor[n-1]);
 }
 
-class UpdateJointSensorConnector : public osg::NodeCallback
+class UpdateConnector : public osg::NodeCallback
 {
-    const std::shared_ptr<Eigen::Vector3f>& joint_position;
-    const std::shared_ptr<Eigen::Vector3f>& sensor_position;
+    const std::shared_ptr<Eigen::Vector3f>& position_a;
+    const std::shared_ptr<Eigen::Vector3f>& position_b;
 public:
-    UpdateJointSensorConnector(const std::shared_ptr<Eigen::Vector3f>& joint_position,
-                               const std::shared_ptr<Eigen::Vector3f>& sensor_position)
-    : joint_position(joint_position), sensor_position(sensor_position)
+    UpdateConnector(const std::shared_ptr<Eigen::Vector3f>& position_a,
+                    const std::shared_ptr<Eigen::Vector3f>& position_b)
+    : position_a(position_a), position_b(position_b)
     {}
 
     virtual void operator()(osg::Node *node, osg::NodeVisitor *nv)
     {
-        if (!joint_position || !sensor_position)
+        if (!position_a || !position_b)
             return;
 
-        const Eigen::Vector3f& spos = *sensor_position;
-        const Eigen::Vector3f& jpos = *joint_position;
+        const Eigen::Vector3f& bpos = *position_b;
+        const Eigen::Vector3f& apos = *position_a;
 
         osg::PositionAttitudeTransform *pose = dynamic_cast<osg::PositionAttitudeTransform *>(node);
-        const Eigen::Vector3f delta = spos - jpos;
+        const Eigen::Vector3f delta = bpos - apos;
         const float zsign = (delta.z() > 0.0f) - (delta.z() < 0.0f);
         const float dlen = delta.norm();
-        const Eigen::Vector3f center = jpos + delta / 2.0;
+        const Eigen::Vector3f center = apos + delta / 2.0;
         const float alen = sqrt(delta.x()*delta.x() + delta.y()*delta.y());
         if (fabs(alen) > 0.1f/180.0f*M_PI) {
             osg::Vec3 axis(-delta.y() / alen, delta.x() / alen, 0.0f);
@@ -210,6 +215,54 @@ public:
     }
 };
 
+class JointToJointConnectorSwitcher : public osg::NodeCallback
+{
+    bool laststate, state;
+public:
+    JointToJointConnectorSwitcher(bool state) : laststate(state), state(state) {}
+
+    void operator()(osg::Node *node, osg::NodeVisitor *nv)
+    {
+        osg::Switch *switcher = static_cast<osg::Switch *>(node);
+        if (laststate != state) {
+            if (state)
+                switcher->setAllChildrenOn();
+            else
+                switcher->setAllChildrenOff();
+            laststate = state;
+        }
+        traverse(node, nv);
+    }
+
+    void toggle()
+    {
+        state = !state;
+    }
+};
+
+class JointToJointConnectorSwitchEvent : public osgGA::GUIEventHandler
+{
+    JointToJointConnectorSwitcher * const switcher;
+public:
+    JointToJointConnectorSwitchEvent(JointToJointConnectorSwitcher *switcher) : switcher(switcher) { assert(switcher); }
+
+    bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
+    {
+        switch (ea.getEventType()) {
+        case osgGA::GUIEventAdapter::KEYDOWN:
+            switch (ea.getKey()) {
+            case 'j':
+                switcher->toggle();
+                return true;
+            default:
+                return false;
+            }
+        default:
+            return false;
+        }
+    }
+};
+
 template <unsigned long n>
 void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientationf>, n>& sso)
 {
@@ -246,16 +299,51 @@ void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientat
         const unsigned sidx = locs.back().sensorId;
         osg::Geode *succ = create_joint_sensor_connector(jsm, k, true);
         connector_with_succ->addChild(succ);
-        connector_with_succ->addUpdateCallback(new UpdateJointSensorConnector(joint_pos[k], sensor_pos[sidx]));
+        connector_with_succ->addUpdateCallback(new UpdateConnector(joint_pos[k], sensor_pos[sidx]));
         root->addChild(connector_with_succ);
 
         osg::PositionAttitudeTransform *connector_with_pred = new osg::PositionAttitudeTransform;
         const unsigned pidx = locs.front().sensorId;
         osg::Geode *pred = create_joint_sensor_connector(jsm, k, false);
         connector_with_pred->addChild(pred);
-        connector_with_pred->addUpdateCallback(new UpdateJointSensorConnector(joint_pos[k], sensor_pos[pidx]));
+        connector_with_pred->addUpdateCallback(new UpdateConnector(joint_pos[k], sensor_pos[pidx]));
         root->addChild(connector_with_pred);
     }
+    /* Create connections between adjacent joints.
+       The parent of all these connections in the scene graph is
+       a switch node. The switch node is used to turn off
+       rendering the joint connections upon a button press. */
+    osg::Switch *osgswitch = new osg::Switch;
+    root->addChild(osgswitch);
+    osg::Group *joint_connectors = new osg::Group;
+    osgswitch->addChild(joint_connectors, false);
+    JointToJointConnectorSwitcher *switcher = new JointToJointConnectorSwitcher(false);
+    osgswitch->addUpdateCallback(switcher);
+    for (unsigned k=0; k<n-1; ++k) {
+        const SensorLocation& kpred = jsm.sensors[k].front();
+        const SensorLocation& ksucc = jsm.sensors[k].back();
+        for (unsigned l=k+1; l<n-1; ++l) {
+            const SensorLocation& lpred = jsm.sensors[l].front();
+            const SensorLocation& lsucc = jsm.sensors[l].back();
+            Eigen::Vector3f delta;
+            if (kpred.sensorId == lpred.sensorId)
+                delta = kpred.jointInSensor - lpred.jointInSensor;
+            else if (kpred.sensorId == lsucc.sensorId)
+                delta = kpred.jointInSensor - lsucc.jointInSensor;
+            else if (ksucc.sensorId == lpred.sensorId)
+                delta = ksucc.jointInSensor - lpred.jointInSensor;
+            else if (ksucc.sensorId == lsucc.sensorId)
+                delta = ksucc.jointInSensor - lsucc.jointInSensor;
+            else
+                continue;
+            osg::Geode *connector_geode = create_connector(delta.norm(), 0.0035f, osg::Vec4(1.0, 0.0, 0.0, 0.7));
+            osg::PositionAttitudeTransform *connector = new osg::PositionAttitudeTransform;
+            connector->addChild(connector_geode);
+            connector->addUpdateCallback(new UpdateConnector(joint_pos[k], joint_pos[l]));
+            joint_connectors->addChild(connector);
+        }
+    }
+
 
     /* Create osg viewer and render scene graph. */
     osgViewer::Viewer viewer;
@@ -271,6 +359,7 @@ void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientat
     camera->setClearColor(osg::Vec4(1.0f,1.0f,1.0f,0.0f));
 
     viewer.setSceneData(root);
+    viewer.addEventHandler(new JointToJointConnectorSwitchEvent(switcher));
     viewer.run();
 }
 
