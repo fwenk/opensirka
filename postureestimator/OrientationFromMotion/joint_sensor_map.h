@@ -36,7 +36,7 @@ public:
     std::list<SensorLocation> * const sensors; /**< sensors[j] is the list of SensorLocations on bodies connected to joint j. */
     /** Index of hinges.
      * hinges[k] is the joint index of hinge k.
-     * I.e. sensors[hinges[k]] is the list of SensorLocations of bodes connected
+     * I.e. sensors[hinges[k]] is the list of SensorLocations of bodies connected
      * to hinge k. */
     std::vector<int> hinges;
 

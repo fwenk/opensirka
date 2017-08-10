@@ -140,7 +140,6 @@ static void synchronize_accumulates(std::array<std::shared_ptr<LIR::IMUAccumulat
         if (!increment_trailing(entry, next, end, max, 50000))
             break;
 
-        // Compute delta accumulates.
         std::array<LIR::IMUAccumulateEntry *, n> resp;
         for (unsigned k=0; k<n; ++k) {
             resp[k] = &(*next[k]);
