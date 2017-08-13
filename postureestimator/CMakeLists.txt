@@ -37,6 +37,14 @@ INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR} )
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} )
 
+IF(NOT IMU_READING_PREFIX)
+  SET(IMU_READING_PREFIX "/usr/local")
+ENDIF(NOT IMU_READING_PREFIX)
+MESSAGE(STATUS "IMU reading library prefix: " ${IMU_READING_PREFIX})
+
+INCLUDE(${IMU_READING_PREFIX}/lib/imureading/imureading-targets.cmake)
+INCLUDE_DIRECTORIES(${IMU_READING_PREFIX}/include/imureading)
+
 SET( GIT_HASH_SOURCE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/githash.cpp" )
 configure_file("${GIT_HASH_SOURCE_FILE}.in" "${GIT_HASH_SOURCE_FILE}" @ONLY)
 
@@ -49,14 +57,6 @@ add_subdirectory(Tests)
 ADD_DEFINITIONS(
     -std=c++11
 )
-
-IF(NOT IMU_READING_PREFIX)
-  SET(IMU_READING_PREFIX "/usr/local")
-ENDIF(NOT IMU_READING_PREFIX)
-MESSAGE(STATUS "IMU reading library prefix: " ${IMU_READING_PREFIX})
-
-INCLUDE(${IMU_READING_PREFIX}/lib/imureading/imureading-targets.cmake)
-INCLUDE_DIRECTORIES(${IMU_READING_PREFIX}/include/imureading)
 
 add_executable( M2AccuReplay m2-accu-replay.cpp ${GIT_HASH_SOURCE_FILE})
 target_link_libraries( M2AccuReplay imureading orientation_from_motion jsmviz ${Boost_LIBRARIES} options pthread)

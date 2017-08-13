@@ -47,8 +47,7 @@ BOOST_AUTO_TEST_CASE(dynamicmodel_jacobians_trivial)
         const Vector9f d = (Vector9f() << q, v, b).finished();
         ofm.sensors[0] += d;
     }
-    Accumulate a(Matrix3f::Identity(), Vector3f::Random() * 10.0f, 0.8f);
-    Rot::expm(a.Q, Vector3f::Random());
+    Accumulate a(Eigen::Quaternionf::UnitRandom(), Vector3f::Random() * 10.0f, 0.8f);
     Accumulate as[1] = { a };
 
     MatrixXf jacobianA = MatrixXf::Zero(SensorState::DOF, SensorState::DOF);
@@ -92,9 +91,9 @@ BOOST_AUTO_TEST_CASE(dynamicmodel_jacobians)
         const Vector9f d = (Vector9f() << q, v, b).finished();
         ofm.sensors[i] += d;
 
+        as[i].Q = Eigen::Quaternionf::UnitRandom();
         as[i].v = Vector3f::Random() * 10.0f;
         as[i].duration = static_cast<unsigned int>(0.8f * 1000000);
-        Rot::expm(as[i].Q, Vector3f::Random());
     }
 
     MatrixXf dummyA(numSensors * SensorState::DOF, numSensors * SensorState::DOF);
@@ -332,8 +331,8 @@ BOOST_AUTO_TEST_CASE(dynamic_update_simple_test)
     const Vector3f gravity(0.0f, 0.0f, -9.81f);
     const Vector3f movement(1.0f, 0.0f, 0.0f);
     const float time = 0.5f;
-    Accumulate as[2] = { Accumulate(Matrix3f::Identity(), (movement - gravity) * time, static_cast<unsigned int>(time * 1000000)),
-                         Accumulate(Matrix3f::Identity(), (movement - gravity) * time, static_cast<unsigned int>(time * 1000000))};
+    Accumulate as[2] = { Accumulate(Eigen::Quaternionf::Identity(), (movement - gravity) * time, static_cast<unsigned int>(time * 1000000)),
+                         Accumulate(Eigen::Quaternionf::Identity(), (movement - gravity) * time, static_cast<unsigned int>(time * 1000000))};
     ofm.covariance.setIdentity();
 
     ofm.dynamic_update(as);
@@ -368,14 +367,14 @@ BOOST_AUTO_TEST_CASE(dynamic_update_simple_test)
 
 static Accumulate create_accumulate(const Vector3f& w, const Vector3f& b, const Vector3f& a_world, const float deltaT, const unsigned steps, bf::ofstream& log)
 {
-    Matrix3f Q_devInWorld = Matrix3f::Identity();
+    Eigen::Quaternionf Q_devInWorld = Eigen::Quaternionf::Identity();
     Accumulate a(Q_devInWorld, Vector3f::Zero(), deltaT * steps);
 
-    const auto rot = [](const Vector3f& q) { Matrix3f Q; Rot::expm(Q, q); return Q; };
     for (unsigned i = 0; i < steps; ++i) {
-        Q_devInWorld *= rot(w * deltaT);
-        const Vector3f a_dev = Q_devInWorld.transpose() * a_world;
-        const Matrix3f deltaQ_biased = rot((w+b) * deltaT);
+        Q_devInWorld = Q_devInWorld * Eigen::AngleAxisf(w.norm() * deltaT, w.normalized());
+        const Vector3f a_dev = Q_devInWorld.inverse() * a_world;
+        const Vector3f wbiased = w + b;
+        Eigen::Quaternionf deltaQ_biased; deltaQ_biased = Eigen::AngleAxisf(wbiased.norm() * deltaT, wbiased.normalized());
         a.Q *= deltaQ_biased;
         a.v += a.Q * a_dev * deltaT;
         if (log.is_open())
@@ -575,85 +574,20 @@ BOOST_AUTO_TEST_CASE(measurement_update_test)
     }
 }
 
-static void check_accumulate_inverse_consistency(const Accumulate& m01, const Accumulate& m12)
-{
-    const Accumulate m02 = m01 * m12;
-    const Accumulate m12_recovered = m01 % m02;
-    BOOST_CHECK(m12.Q.isApprox(m12_recovered.Q));
-    BOOST_CHECK_SMALL((m12.v - m12_recovered.v).norm(), 1e-3f);
-    BOOST_CHECK_EQUAL(m12.duration, m12_recovered.duration);
-}
-BOOST_AUTO_TEST_CASE(accumulate_differences)
-{
-    const Accumulate m01(Matrix3f::Identity(), Vector3f::Ones() * 2.0f, 2u*1000000u);
-    const Accumulate m12(Matrix3f::Identity(), Vector3f::Ones(), 1000000u);
-
-    const Accumulate m02 = m01 * m12;
-    BOOST_CHECK(m02.Q.isApprox(Matrix3f::Identity()));
-    BOOST_CHECK(m02.v.isApprox(Vector3f::Constant(3.0f)));
-    BOOST_CHECK_EQUAL(m02.duration, 3*1000000);
-
-    check_accumulate_inverse_consistency(m01, m12);
-
-    for (int i = 0; i < 1000; ++i) {
-        const Vector3f axis01 = Vector3f::Random();
-        const Vector3f axis12 = Vector3f::Random();
-        Matrix3f Q01, Q12;
-        Rot::expm(Q01, axis01);
-        Rot::expm(Q12, axis12);
-        Eigen::Matrix<float, 1, 1> length01 = Eigen::Matrix<float, 1, 1>::Random() * 40.0f + Eigen::Matrix<float,1,1>::Constant(10.0f);
-        Eigen::Matrix<float, 1, 1> length12 = Eigen::Matrix<float, 1, 1>::Random() * 40.0f + Eigen::Matrix<float,1,1>::Constant(10.0f);
-        check_accumulate_inverse_consistency(Accumulate(Q01, Vector3f::Random().normalized() * length01, 1000000u),
-                                             Accumulate(Q12, Vector3f::Random().normalized() * length12, 1100000u));
-    }
-}
-
-BOOST_AUTO_TEST_CASE(accumulate_overflow_trivial)
-{
-    Accumulate m01(Matrix3f::Identity(), Vector3f(0.0f, 0.0f, -90.0f), 1000000u);
-    m01 *= Accumulate(Matrix3f::Identity(), Vector3f::Zero(), 0u);
-    BOOST_CHECK_CLOSE(m01.v.z(), 10.0f, 1.0f);
-}
-
-BOOST_AUTO_TEST_CASE(accumulate_overflow)
-{
-    {
-        Accumulate m01(Matrix3f::Identity(), Vector3f(0.0f, 0.0f, -40.0f), 1000000u);
-        Accumulate m12(Matrix3f::Identity(), Vector3f(0.0f, 0.0f, -1300.0f), 1000000u);
-        Accumulate m02 = m01 * m12;
-        for (int k = 0; k < 3; ++k)
-            BOOST_CHECK_LE(std::abs(m02.v[k]), 50.0f);
-    }{
-        Accumulate m01(Matrix3f::Identity(), Vector3f(0.0f, 0.0f, -40.0f), 1000000u);
-        Accumulate m12(Matrix3f::Identity(), Vector3f(0.0f, 0.0f, -30.0f), 1000000u);
-        Accumulate m02 = m01 * m12;
-        BOOST_CHECK_CLOSE(m02.v.z(), 30.0f, 1.0f);
-        check_accumulate_inverse_consistency(m01, m12);
-    }{
-        const Vector3f axis01(0.877629637f, 0.321868062f, -0.364222646f);
-        const Vector3f axis12(0.510310769f, 0.792763352f, -0.0254300833f);
-        Matrix3f Q01, Q12;
-        Rot::expm(Q01, axis01);
-        Rot::expm(Q12, axis12);
-        Accumulate m01(Q01, Vector3f(29.8361607f, -43.6177063f, 17.1878986f).normalized() * 49.0f, 1000000u);
-        Accumulate m12(Q12, Vector3f(-22.9289055f, 33.9052544f, 45.6504478f).normalized() * 49.0f, 1000000u);
-        check_accumulate_inverse_consistency(m01, m12);
-    }
-}
-
 struct AccumulateBoxOps
 {
     enum { DOF = 6 };
     static Vector6f minus(const Accumulate& lhs, const Accumulate& rhs)
     {
         Vector3f q;
-        Rot::logm(q, rhs.Q.transpose() * lhs.Q);
+        const Matrix3f deltaQ = (rhs.Q.inverse() * lhs.Q).toRotationMatrix();
+        Rot::logm(q, deltaQ);
         return (Vector6f() << q, (lhs.v - rhs.v)).finished();
     }
     static Accumulate plus(const Accumulate& lhs, const Vector6f& rhs)
     {
-        Matrix3f Q;
-        Rot::expm(Q, rhs.segment<3>(0));
+        Eigen::Quaternionf Q;
+        Q = Eigen::AngleAxisf(rhs.segment<3>(0).norm(), rhs.segment<3>(0).normalized());
         return Accumulate(lhs.Q * Q, lhs.v + rhs.segment<3>(3), lhs.duration);
     }
 };
@@ -668,8 +602,8 @@ struct ParameterBoxOps
 Accumulate update_accumulate(const Accumulate& a, const Vector6f& inertialmeas,
                              const float deltaT)
 {
-    Eigen::Matrix3f dQ;
-    Rot::expm(dQ, inertialmeas.segment<3>(0) * deltaT);
+    Eigen::Quaternionf dQ;
+    dQ = Eigen::AngleAxisf(inertialmeas.segment<3>(0).norm() * deltaT, inertialmeas.segment<3>(0).normalized());
     Eigen::Vector3f dv = dQ * inertialmeas.segment<3>(3) * deltaT;
     return a * Accumulate(dQ, dv, deltaT);
 }

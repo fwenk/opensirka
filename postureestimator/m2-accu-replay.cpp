@@ -168,8 +168,8 @@ void compute_delta_accumulates(std::list<AccumulateAngVelPair<n>>& delta_accumul
         for (unsigned k=0; k<n; ++k) {
             const LIR::IMUAccumulateEntry& he = *((*header)[k]); /* heading accumulate entry */
             const LIR::IMUAccumulateEntry& te = *((*trailer)[k]); /* trailing accumulate entry */
-            const Accumulate h(he.orientation.toRotationMatrix().cast<float>(), he.velocity.cast<float>(), he.usecs);
-            const Accumulate t(te.orientation.toRotationMatrix().cast<float>(), te.velocity.cast<float>(), te.usecs);
+            const Accumulate h(he.orientation.cast<float>(), he.velocity.cast<float>(), he.usecs);
+            const Accumulate t(te.orientation.cast<float>(), te.velocity.cast<float>(), te.usecs);
             aavp.as[k] = t % h;
             aavp.ws[k] = he.angular_velocity.cast<float>();
         }

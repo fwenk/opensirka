@@ -64,8 +64,7 @@ BOOST_AUTO_TEST_CASE(jacobians)
             const Vector9f d = (Vector9f() << q, v, b).finished();
             s += d;
         }
-        Accumulate a(Matrix3f::Identity(), Vector3f::Random() * 10.0f, 0.8f);
-        Rot::expm(a.Q, Vector3f::Random());
+        Accumulate a(Eigen::Quaternionf::UnitRandom(), Vector3f::Random() * 10.0f, 0.8f);
 
         Matrix9f dummyA;
         Matrix9f6 dummyB;
@@ -83,8 +82,7 @@ BOOST_AUTO_TEST_CASE(jacobians)
 
         Matrix9f6 B_numeric = Matrix9f6::Zero();
         const auto accbplus = [](const Accumulate& a, const Vector6f& d) -> Accumulate {
-            Matrix3f drot;
-            Rot::expm(drot, d.head<3>());
+            const Eigen::AngleAxisf drot(d.head<3>().norm(), d.head<3>().normalized());
             return Accumulate(a.Q * drot, a.v + d.tail<3>(), a.duration);
         };
         for (int d = 0; d < 6; ++d) {
