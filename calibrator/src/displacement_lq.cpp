@@ -4,7 +4,9 @@
  */
 #include "displacement_lq.h"
 #include "sphere_parameterization.h"
-#include "Accumulate.h"
+#include <Accumulate.h>
+typedef LIR::Accumulate<double> Accumulate;
+typedef std::list<Accumulate> AccumulateRun;
 
 #ifdef __APPLE__
 #include <Accelerate/Accelerate.h>
