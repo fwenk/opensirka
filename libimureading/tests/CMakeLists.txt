@@ -8,6 +8,10 @@ ADD_DEFINITIONS(
     -DBOOST_TEST_DYN_LINK
     )
 
+add_executable(test_accumulate test_accumulate.cpp)
+target_link_libraries(test_accumulate ${Boost_LIBRARIES} imureading pthread)
+add_test(NAME test_accumulate COMMAND test_accumulate)
+
 add_executable(test_loadresolutions test_loadresolutions.cpp)
 target_link_libraries(test_loadresolutions ${Boost_LIBRARIES} imureading pthread)
 add_test(NAME test_loadresolutions COMMAND test_loadresolutions)
