@@ -9,7 +9,7 @@
 #ifdef __APPLE__
 #include <Accelerate/Accelerate.h>
 #else
-#include <lapacke/lapacke.h>
+#include <lapacke.h>
 #endif
 
 #include <ceres/rotation.h>
@@ -796,10 +796,11 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
     }
 
     ceres::Solver::Options options;
+    //options.num_linear_solver_threads = 4;
     options.minimizer_progress_to_stdout = true;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-    std::cout << summary.BriefReport() << "\n";
+    std::cout << summary.FullReport() << std::endl;
 
     // Get calibration resultls
     // Joint-Sensor-Map
