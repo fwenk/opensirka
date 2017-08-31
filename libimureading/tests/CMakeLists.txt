@@ -19,3 +19,7 @@ add_test(NAME test_loadresolutions COMMAND test_loadresolutions)
 add_executable(test_loadaccumulate test_loadaccumulate.cpp)
 target_link_libraries(test_loadaccumulate ${Boost_LIBRARIES} imureading pthread)
 add_test(NAME test_loadaccumulate COMMAND test_loadaccumulate "${CMAKE_CURRENT_LIST_DIR}/data/sensor-0-accumulate.log")
+
+add_executable(test_jointsensormap test_jointsensormap.cpp)
+target_link_libraries(test_jointsensormap ${Boost_LIBRARIES} imureading pthread)
+add_test(NAME test_jointsensormap COMMAND test_jointsensormap "${CMAKE_CURRENT_LIST_DIR}/data/jsm.txt")
