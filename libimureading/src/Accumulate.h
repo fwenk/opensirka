@@ -1,3 +1,11 @@
+/**
+ * Copyright (c) 2016 DFKI GmbH
+ *
+ * Author: Felix Wenk <felix.wenk@dfki.de>
+ *
+ * Copyright (c) 2017 Felix Wenk <felixwenk@googlemail.com>
+ */
+
 #ifndef __ACCUMULATE_H
 #define __ACCUMULATE_H
 
