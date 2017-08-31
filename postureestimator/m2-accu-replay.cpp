@@ -15,7 +15,6 @@
 #include <jsmviz/jsmviz.h>
 #include <Options/options.h>
 
-#include <OrientationFromMotion/joint_sensor_map.h>
 #include <OrientationFromMotion/orientation_from_motion.h>
 
 #include <array>

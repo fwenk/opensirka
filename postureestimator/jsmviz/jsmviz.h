@@ -8,7 +8,9 @@
 #include <memory>
 #include <Types/data_types.h>
 
-class JointSensorMap;
+#include <JointSensorMap.h>
+typedef LIR::JointSensorMap<float> JointSensorMap;
+typedef JointSensorMap::SensorLocation SensorLocation;
 
 template <unsigned long n>
 void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientationf>, n>& sso);

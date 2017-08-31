@@ -15,6 +15,8 @@
 #include <MathHelper/crossx.h>
 #include <MathHelper/sphere.h>
 
+typedef JointSensorMap::SensorLocation SensorLocation;
+
 OrientationFromMotion::OrientationFromMotion(int numSensors, const JointSensorMap& jsm, const Variances& variances, int maxIterations)
 : numSensors(numSensors), maxIterations(maxIterations), initialized(false), sensors(new SensorState[numSensors]),
   covariance(MatrixXf::Identity(numSensors * SensorState::DOF, numSensors * SensorState::DOF)),
@@ -35,8 +37,8 @@ OrientationFromMotion::OrientationFromMotion(int numSensors, const JointSensorMa
     for (int k = 0; k < jsm.hinges.size(); ++k) {
         const SensorLocation& ploc = jsm.sensors[jsm.hinges[k]].front();
         const SensorLocation& sloc = jsm.sensors[jsm.hinges[k]].back();
-        assert (ploc.type == JointType::hinge);
-        assert (sloc.type == JointType::hinge);
+        assert (ploc.type == LIR::JointType::hinge);
+        assert (sloc.type == LIR::JointType::hinge);
         /* Compute the Jacobians of the boxplus operation. The boxplus operation
            is used to map small changes of the point on the sphere to the 3d-overparameterization.
            The Jacobians are used to propagate the covariance of the 2d-uncertainty
@@ -101,7 +103,6 @@ void OrientationFromMotion::measurement_model(const SensorState * const sensors,
     }
     /* Compute expected 'measurement' and Jacobian entries of joint-velocity-prior. */
     for (int j = 0; j < jsm.numJoints; ++j) {
-        assert(jsm.sensors[j].size() == 2); // TODO: Implement support for multiple sensors per body later.
         const SensorLocation& ploc = jsm.sensors[j].front();
         const SensorLocation& sloc = jsm.sensors[j].back();
         const Vector3f& r_p = ploc.jointInSensor;
@@ -136,8 +137,8 @@ void OrientationFromMotion::measurement_model(const SensorState * const sensors,
     for (int k = 0; k < jsm.hinges.size(); ++k) {
         const SensorLocation& ploc = jsm.sensors[jsm.hinges[k]].front();
         const SensorLocation& sloc = jsm.sensors[jsm.hinges[k]].back();
-        assert (ploc.type == JointType::hinge);
-        assert (sloc.type == JointType::hinge);
+        assert (ploc.type == LIR::JointType::hinge);
+        assert (sloc.type == LIR::JointType::hinge);
         const Vector3f h_s = sensors[sloc.sensorId].Q * sloc.hingeAxisInSensor;
         const Vector3f h_p = sensors[ploc.sensorId].Q * ploc.hingeAxisInSensor;
         expectedMeas.segment<3>(3 * (numSensors+jsm.numJoints+k)) = h_s - h_p;
@@ -291,13 +292,13 @@ void OrientationFromMotion::compute_hinge_constraint_measurement_variance(Eigen:
        conrstraints combined. */
     for (int k = 0; k < jsm.hinges.size(); ++k) {
         /* Get the data for the current constraint. */
-        const std::list<SensorLocation>&  hingeSensors   = jsm.sensors[jsm.hinges[k]];
-        const SensorLocation&             predSensor     = hingeSensors.front();
-        const SensorLocation&             succSensor     = hingeSensors.back();
-        const Matrix3f&                   Q_predInWorld  = sensors[predSensor.sensorId].Q;
-        const Matrix3f&                   Q_succInWorld  = sensors[succSensor.sensorId].Q;
-        const Matrix3f&                   hingeCovInPred = hingeAxisCovariances[k].covInPredecessor;
-        const Matrix3f&                   hingeCovInSucc = hingeAxisCovariances[k].covInSuccessor;
+        const JointSensorMap::Joint& hingeSensors   = jsm.sensors[jsm.hinges[k]];
+        const SensorLocation&        predSensor     = hingeSensors.front();
+        const SensorLocation&        succSensor     = hingeSensors.back();
+        const Matrix3f&              Q_predInWorld  = sensors[predSensor.sensorId].Q;
+        const Matrix3f&              Q_succInWorld  = sensors[succSensor.sensorId].Q;
+        const Matrix3f&              hingeCovInPred = hingeAxisCovariances[k].covInPredecessor;
+        const Matrix3f&              hingeCovInSucc = hingeAxisCovariances[k].covInSuccessor;
         /* Compute the covariance. */
         cov.block<3,3>(3*k, 3*k) = (Q_predInWorld * hingeCovInPred * Q_predInWorld.transpose()
             + Q_succInWorld * hingeCovInSucc * Q_succInWorld.transpose()) * timescale;

@@ -8,7 +8,7 @@
 
 #include "jsmviz.h"
 
-#include <OrientationFromMotion/joint_sensor_map.h>
+#include <JointSensorMap.h>
 
 #include <osg/ShapeDrawable>
 #include <osg/Node>
@@ -77,7 +77,7 @@ unsigned index_of_computable_joint(const JointSensorMap& jsm,
     for (unsigned j=0; j<m; ++j) {
         if (computed_joint[j])
             continue;
-        const std::list<SensorLocation>& joint = jsm.sensors[j];
+        const JointSensorMap::Joint& joint = jsm.sensors[j];
         const int psid = joint.front().sensorId; /* Index of preceeding sensor. */
         const int ssid = joint.back().sensorId; /* Index of succeeding senosr. */
         if (computed_sensor[psid] || computed_sensor[ssid])
@@ -294,7 +294,7 @@ void jsmviz(const JointSensorMap& jsm, std::array<std::shared_ptr<SharedOrientat
     }
     /* Create connections between joints and sensors. */
     for (unsigned k=0; k<n-1; ++k) {
-        const std::list<SensorLocation>& locs = jsm.sensors[k];
+        const JointSensorMap::Joint& locs = jsm.sensors[k];
         osg::PositionAttitudeTransform *connector_with_succ = new osg::PositionAttitudeTransform;
         const unsigned sidx = locs.back().sensorId;
         osg::Geode *succ = create_joint_sensor_connector(jsm, k, true);

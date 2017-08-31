@@ -6,9 +6,11 @@
 #ifndef __ORIENTATION_FROM_MOTION_H_
 #define __ORIENTATION_FROM_MOTION_H_
 
+#include <JointSensorMap.h>
 #include "single_sensor_state.h"
-#include "joint_sensor_map.h"
 #include "ofm_log.h"
+
+typedef LIR::JointSensorMap<float> JointSensorMap;
 
 class OrientationFromMotion {
     const int numSensors;
