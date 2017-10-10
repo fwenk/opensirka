@@ -19,8 +19,8 @@ namespace LIR
     class JointSensorMap
     {
     public:
-        typedef SensorLocation<real> SensorLocation;
-        typedef Joint<real> Joint;
+        typedef LIR::SensorLocation<real> SensorLocation;
+        typedef LIR::Joint<real> Joint;
 
         int numJoints;
         std::vector<Joint> sensors; /**< sensors[j] has the sensors connected to joint j. */
@@ -30,8 +30,10 @@ namespace LIR
           * to hinge k. */
         std::vector<int> hinges;
 
+        JointSensorMap() : numJoints(0) {}
+
         JointSensorMap(const JointSensorMap& other)
-        : numJoints(other.numJoints), sensors(other.sensors)
+        : numJoints(other.numJoints), sensors(other.sensors), hinges(other.hinges)
         {}
 
         JointSensorMap(std::istream& is)
