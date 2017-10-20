@@ -18,8 +18,8 @@
 typedef JointSensorMap::SensorLocation SensorLocation;
 
 OrientationFromMotion::OrientationFromMotion(int numSensors, const JointSensorMap& jsm, const Variances& variances, int maxIterations)
-: numSensors(numSensors), maxIterations(maxIterations), initialized(false), sensors(new SensorState[numSensors]),
-  covariance(MatrixXf::Identity(numSensors * SensorState::DOF, numSensors * SensorState::DOF)),
+: numSensors(numSensors), maxIterations(maxIterations), sensors(new SensorState[numSensors]),
+  covariance(MatrixXf::Identity(numSensors * SensorState::DOF, numSensors * SensorState::DOF)), initialized(false),
   jacobianA(numSensors * SensorState::DOF, numSensors * SensorState::DOF),
   jacobianB(numSensors * SensorState::DOF, numSensors * Accumulate::DOF),
   jacobianHx(3 * (numSensors + jsm.numJoints + jsm.hinges.size()) + 1, numSensors * SensorState::DOF),
