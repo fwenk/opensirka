@@ -12,10 +12,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/test/unit_test.hpp>
-//#include <boost/log/trivial.hpp>
 #include <boost/bind.hpp>
 #include <OrientationFromMotion/orientation_from_motion.h>
-#include <OrientationFromMotion/joint_sensor_map.h>
 #include <MathHelper/expm.h>
 #include <MathHelper/jacobian.h>
 
@@ -37,7 +35,7 @@ BOOST_AUTO_TEST_CASE(dynamicmodel_jacobians_trivial)
     variances.velocity_decorrelation_time = 1.0f;
     variances.z_variance = 1.0f;
     variances.z_decorrelation_time = 1.0f;
-    OrientationFromMotion ofm(1, JointSensorMap(0), variances);
+    OrientationFromMotion ofm(1, JointSensorMap(), variances);
     {
         const Vector3f q = Vector3f::Random();
         Vector3f v = Vector3f::Random();
@@ -80,7 +78,7 @@ BOOST_AUTO_TEST_CASE(dynamicmodel_jacobians)
     variances.z_variance = 1.0f;
     variances.z_decorrelation_time = 1.0f;
     const int numSensors = 15;
-    OrientationFromMotion ofm(numSensors, JointSensorMap(0), variances);
+    OrientationFromMotion ofm(numSensors, JointSensorMap(), variances);
     Accumulate as[numSensors];
     for (int i = 0; i < numSensors; ++i) {
         const Vector3f q = Vector3f::Random();
@@ -155,13 +153,6 @@ BOOST_AUTO_TEST_CASE(dynamicmodel_jacobians)
     BOOST_CHECK(jacobianB_diff.norm() < 0.1);
 }
 
-BOOST_AUTO_TEST_CASE(jointsensormap_construction)
-{
-    JointSensorMap jsm(1);
-    jsm.sensors[0].push_back(SensorLocation(Vector3f(1.0f, 0.0f, 0.0f), 0));
-    jsm.sensors[0].push_back(SensorLocation(Vector3f(0.0f, 0.0f, 1.0f), 1));
-}
-
 BOOST_AUTO_TEST_CASE(jointsensormap_loading)
 {
     { // Empty joint sensors map.
@@ -181,18 +172,15 @@ BOOST_AUTO_TEST_CASE(jointsensormap_loading)
         BOOST_CHECK(jsm.numJoints == 2);
         BOOST_CHECK(jsm.hinges.size() == 1);
 
-        Vector3f exepcted[2][2] = {{Vector3f(1.0f, 1.2f, 3.2f), Vector3f(1.0f, 1.0f, 1.0f)},
+        Vector3f expected[2][2] = {{Vector3f(1.0f, 1.2f, 3.2f), Vector3f(1.0f, 1.0f, 1.0f)},
             {Vector3f(-1.0f, -1.2f, 1.0f), Vector3f(2.0f, 2.0f, 2.0f)}};
 
-        BOOST_CHECK(jsm.sensors[0].size() == 2);
-        BOOST_CHECK(jsm.sensors[1].size() == 2);
-
         for (int i = 0; i < 2; ++i) {
-            for (const SensorLocation& sl : jsm.sensors[i]) {
-                const int j = sl.sensorId - i;
-                BOOST_CHECK(j < 2);
-                BOOST_CHECK(sl.jointInSensor.isApprox(exepcted[i][j]));
-            }
+            const JointSensorMap::Joint& joint = jsm.sensors[i];
+            BOOST_CHECK(joint.predecessor().sensorId <= 2);
+            BOOST_CHECK(joint.successor().sensorId <= 2);
+            BOOST_CHECK(joint.predecessor().jointInSensor.isApprox(expected[i][joint.predecessor().sensorId-i]));
+            BOOST_CHECK(joint.successor().jointInSensor.isApprox(expected[i][joint.successor().sensorId-i]));
         }
     }
 }
@@ -490,8 +478,8 @@ BOOST_AUTO_TEST_CASE(measurement_update_test)
     const Eigen::LLT<MatrixXf> measurement_variance_solver = measurement_variance.llt();
 
     OrientationFromMotion ofm(numSensors, jsm, variances);
-    const SensorLocation& sl1 = ofm.jsm.sensors[0].front();
-    const SensorLocation& sl2 = ofm.jsm.sensors[0].back();
+    const JointSensorMap::SensorLocation& sl1 = ofm.jsm.sensors[0].front();
+    const JointSensorMap::SensorLocation& sl2 = ofm.jsm.sensors[0].back();
     // Initialize orientation from motion to a circular motion
     SensorState initial_states[numSensors];
     initial_states[sl1.sensorId].v = omega.cross(-sl1.jointInSensor); // '-' because of sensorInJoint
@@ -635,7 +623,8 @@ BOOST_AUTO_TEST_CASE(accumulate_covariance_approximation)
     variances.z_decorrelation_time = 1.0f;
     variances.hinge_axis_variance = 0.125f*0.125f;
     variances.hinge_axis_decorrelation_time = 1.0f;
-    OrientationFromMotion ofm(1, JointSensorMap(0), variances);
+    JointSensorMap jsm;
+    OrientationFromMotion ofm(1, jsm, variances);
 
     /* For 10 steps, which corresponds to the 10Hz output of our estimator,
        we now integrate the accumulate. */
