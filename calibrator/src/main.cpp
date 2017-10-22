@@ -14,7 +14,7 @@
 #include <boost/program_options.hpp>
 
 #include <IMUAccumulate.h>
-#include "joint_sensor_map.h"
+#include "joint_sensor_map_extensions.h"
 #include "displacement_lq.h"
 #include "TimedSensorState.h"
 

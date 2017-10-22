@@ -370,8 +370,8 @@ void debug_sphere_parameterization()
 }
 #endif
 
-static void calibrate_hinge(SensorLocation& jsmEntrySucc,
-                            SensorLocation& jsmEntryPred,
+static void calibrate_hinge(JointSensorMap::SensorLocation& jsmEntrySucc,
+                            JointSensorMap::SensorLocation& jsmEntryPred,
                             const LIR::IMUAccumulates& readingsSucc,
                             const LIR::IMUAccumulates& readingsPred,
                             const StandardDeviations& stddevs);
@@ -384,10 +384,10 @@ void compute_initial_hinge_axes_guess(
     debug_sphere_parameterization();
 #endif
     for (unsigned j = 0; j < jsm.numJoints; ++j) {
-        SensorLocation& predecessor = jsm.sensors[j].front();
-        SensorLocation& successor = jsm.sensors[j].back();
+        JointSensorMap::SensorLocation& predecessor = jsm.sensors[j].predecessor();
+        JointSensorMap::SensorLocation& successor = jsm.sensors[j].successor();
         assert (successor.type == predecessor.type);
-        if (successor.type != JointType::hinge)
+        if (successor.type != LIR::JointType::hinge)
             continue;
         const LIR::IMUAccumulates& readingsSucc = *readings[successor.sensorId];
         const LIR::IMUAccumulates& readingsPred = *readings[predecessor.sensorId];
@@ -396,9 +396,9 @@ void compute_initial_hinge_axes_guess(
 
     std::cout << "Listing Hinges:" << std::endl;
     for (int j = 0; j < jsm.numJoints; ++j) {
-        const SensorLocation& predecessor = jsm.sensors[j].front();
-        const SensorLocation& successor = jsm.sensors[j].back();
-        if (successor.type != JointType::hinge)
+        const JointSensorMap::SensorLocation& predecessor = jsm.sensors[j].front();
+        const JointSensorMap::SensorLocation& successor = jsm.sensors[j].back();
+        if (successor.type != LIR::JointType::hinge)
             continue;
 
         std::cout << "======" << std::endl << "Joint " << j << ':' << std::endl
@@ -410,8 +410,8 @@ void compute_initial_hinge_axes_guess(
 
 }
 
-static void calibrate_hinge(SensorLocation& jsmEntrySucc,
-                            SensorLocation& jsmEntryPred,
+static void calibrate_hinge(JointSensorMap::SensorLocation& jsmEntrySucc,
+                            JointSensorMap::SensorLocation& jsmEntryPred,
                             const LIR::IMUAccumulates& readingsSucc,
                             const LIR::IMUAccumulates& readingsPred,
                             const StandardDeviations& stddevs)
@@ -692,17 +692,16 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
     HingeMap hingeMap;
     JointLocations jointLocations;
     jointLocations.reserve(jsm.numJoints);
-    for (unsigned j = 0; j < jsm.numJoints; ++j) {
-        const JointSensorMap::JointSensors& jointSensors = jsm.sensors[j];
-        const SensorLocation& predecessor = jointSensors.predecessor();
-        const SensorLocation& successor = jointSensors.successor();
-        const bool is_hinge = predecessor.type == JointType::hinge;
+    for (const JointSensorMap::Joint& jointSensors : jsm.sensors) {
+        const JointSensorMap::SensorLocation& predecessor = jointSensors.predecessor();
+        const JointSensorMap::SensorLocation& successor = jointSensors.successor();
+        const bool is_hinge = predecessor.type == LIR::JointType::hinge;
         assert (!is_hinge || successor.type == JointType::hinge);
 
         // Initialize joint location for joint j.
         jointLocations.push_back(CeresJointLocation());
         CeresJointLocation& jloc = jointLocations.back();
-        jloc.joint_id = j;
+        jloc.joint_id = jointSensors.getJointId();
         jloc.pred_sensor_id = predecessor.sensorId;
         jloc.succ_sensor_id = successor.sensorId;
         for (unsigned d = 0; d < 3; ++d) {
@@ -808,8 +807,8 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
     JointLocations::const_iterator jloc_it = jointLocations.begin();
     for (unsigned j = 0; j < jsm.numJoints; ++j, ++jloc_it) {
         assert (jloc_it != jointLocations.end());
-        SensorLocation& succ = jsm.sensors[j].back();
-        SensorLocation& pred = jsm.sensors[j].front();
+        JointSensorMap::SensorLocation& succ = jsm.sensors[j].successor();
+        JointSensorMap::SensorLocation& pred = jsm.sensors[j].predecessor();
         const CeresJointLocation& jloc = *jloc_it;
         assert (j == jloc.joint_id);
         assert (succ.sensorId == jloc.succ_sensor_id);
@@ -820,7 +819,7 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
             succ.jointInSensor[d] = jloc.r_jointInSuccessor[d];
         }
 
-        if (pred.type == JointType::hinge && calibrate_with_hinges) {
+        if (pred.type == LIR::JointType::hinge && calibrate_with_hinges) {
             assert(succ.type == JointType::hinge);
             HingeMap::const_iterator hinge = hingeMap.find(j);
             assert (hinge != hingeMap.end());
@@ -894,11 +893,10 @@ void calibrate_displacements(std::vector<std::shared_ptr<LIR::IMUAccumulates>> r
 
     run_calibrator(accumulateDeltaRuns, angularVelocityRuns, imuTrajectories, jsm, stddevs, symmetries, false);
     // Check joint axes.
-    for (unsigned j = 0; j < jsm.numJoints; ++j) {
-        JointSensorMap::JointSensors& js = jsm.sensors[j];
-        SensorLocation& pred = js.front();
-        SensorLocation& succ = js.back();
-        if (pred.type != JointType::hinge)
+    for (JointSensorMap::Joint& js : jsm.sensors) {
+        JointSensorMap::SensorLocation& pred = js.predecessor();
+        const JointSensorMap::SensorLocation& succ = js.successor();
+        if (pred.type != LIR::JointType::hinge)
             continue;
 
         const TimedSensorStateRun& run_pred = imuTrajectories[pred.sensorId];
@@ -910,7 +908,7 @@ void calibrate_displacements(std::vector<std::shared_ptr<LIR::IMUAccumulates>> r
         do {
             const Eigen::Quaterniond q_succInPred = first_pred.q_imuInWorld.inverse() * first_succ.q_imuInWorld;
             Eigen::Vector3d succaxis_inPred = q_succInPred * succ.hingeAxisInSensor;
-            std::cout << "=== JOINT " << j << " ===" << std::endl;
+            std::cout << "=== JOINT " << js.getJointId() << " ===" << std::endl;
             std::cout << "Pred Axis In Pred: " << pred.hingeAxisInSensor.transpose() << std::endl;
             std::cout << "Succ Axis In Pred: " << succaxis_inPred.transpose() << std::endl;
             Eigen::Vector2d delta;

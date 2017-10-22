@@ -7,7 +7,7 @@
 #define __DISPLACEMENT_LQ_H_
 
 #include "TimedSensorState.h"
-#include "joint_sensor_map.h"
+#include "joint_sensor_map_extensions.h"
 #include <IMUAccumulate.h>
 
 struct StandardDeviations {
