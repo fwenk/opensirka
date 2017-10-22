@@ -84,8 +84,10 @@ public:
     : jointId(jointId), predecessorLocation(predecessor), successorLocation(successor)
     {}
     const SensorLocation<real>& predecessor() const { return predecessorLocation; }
+    SensorLocation<real>& predecessor() { return predecessorLocation; }
     const SensorLocation<real>& front() const { return predecessor(); }
     const SensorLocation<real>& successor() const { return successorLocation; }
+    SensorLocation<real>& successor() { return successorLocation; }
     const SensorLocation<real>& back() const { return successor(); }
     int getJointId() const { return jointId; }
 };
