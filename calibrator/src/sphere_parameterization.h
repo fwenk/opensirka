@@ -69,7 +69,7 @@ void boxminus(const T *y, const T *x, T *y_bminus_x) {
         }
         norm_v = T(1e-6);
     }
-    const T fac = atan2(norm_v, Ry[0]);
+    const T fac = atan2(norm_v, Ry[0]) / norm_v;
     y_bminus_x[0] = fac * Ry[1];
     y_bminus_x[1] = fac * Ry[2];
 }
