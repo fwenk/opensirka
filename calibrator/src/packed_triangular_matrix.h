@@ -1,8 +1,9 @@
 /**
  * Copyright (c) 2016 DFKI GmbH
  *
- * Author: Felix Wenk <felix.wenk@dfki.de>
- * Author: Felix Wenk <felixwenk@googlemail.com> (2017)
+ * Authors:
+ *   2016: Felix Wenk <felix.wenk@dfki.de>
+ *   2017: Felix Wenk <felixwenk@googlemail.com>
  */
 #ifndef __PACKED_TRIANGULAR_MATRIX_H_
 #define __PACKED_TRIANGULAR_MATRIX_H_
