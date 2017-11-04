@@ -21,35 +21,6 @@ typedef std::list<Accumulate> AccumulateRun;
 
 #include <Eigen/Cholesky>
 
-struct HingeConstraint2D
-{
-    const double stddev;
-
-    HingeConstraint2D(const double stddev) : stddev(stddev) {}
-
-    template<typename T>
-    bool operator()(const T *q_predInWorld, const T *q_succInWorld,
-                    const T *axis_inPred, const T *axis_inSucc,
-                    T *residual) const {
-        const T q_worldInSucc[4] = { q_succInWorld[0], -q_succInWorld[1], -q_succInWorld[2], -q_succInWorld[3] };
-        T q_predInSucc[4];
-        ceres::QuaternionProduct(q_worldInSucc, q_predInWorld, q_predInSucc);
-        T predAxis_inSucc[3];
-        ceres::QuaternionRotatePoint(q_predInSucc, axis_inPred, predAxis_inSucc);
-
-        boxminus<T>(axis_inSucc, predAxis_inSucc, residual);
-        T stddev_jet(stddev);
-        residual[0] /= stddev_jet;
-        residual[1] /= stddev_jet;
-
-        return true;
-    }
-
-    static ceres::CostFunction *Create(const double stddev) {
-        return new ceres::AutoDiffCostFunction<HingeConstraint2D, 2, 4, 4, 3, 3>(new HingeConstraint2D(stddev));
-    }
-};
-
 struct HingeConstraint1D
 {
     const double stddev;
