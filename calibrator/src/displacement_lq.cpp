@@ -21,15 +21,6 @@ typedef std::list<Accumulate> AccumulateRun;
 
 #include <Eigen/Cholesky>
 
-struct SimpleSphereError {
-    template<typename T>
-    bool operator()(const T *x, T *residual) const {
-        const T y[3] = { T(1.0), T(0.0), T(0.0) };
-        boxminus(y, x, residual);
-        return true;
-    }
-};
-
 struct HingeConstraint2D
 {
     const double stddev;
