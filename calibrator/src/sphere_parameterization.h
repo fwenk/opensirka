@@ -78,13 +78,6 @@ struct SpherePlus {
     template<typename T>
     bool operator()(const T *x, const T *delta, T *x_plus_delta) const {
         boxplus<T>(x, delta, x_plus_delta);
-#if 0
-        const T x_plus_delta_norm = sqrt(x_plus_delta[0]*x_plus_delta[0] + x_plus_delta[1]*x_plus_delta[1] + x_plus_delta[2]+x_plus_delta[2]);
-        x_plus_delta[0] /= x_plus_delta_norm;
-        x_plus_delta[1] /= x_plus_delta_norm;
-        x_plus_delta[2] /= x_plus_delta_norm;
-#endif
-
         return true;
     }
 };
