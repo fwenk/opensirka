@@ -128,43 +128,6 @@ struct SensorStateRun {
 typedef std::map<unsigned, CeresJointAxis> HingeMap;
 typedef std::list<Eigen::Vector3d> AngularVelocityRun;
 
-void test_helper_functions()
-{
-    /* For fun and testing, compute the cholesky factorization with LAPACK of a symmetric matrix. */
-    Eigen::Matrix<double, 6, 6> X;
-    X.setRandom();
-    Eigen::Matrix<double, 6, 6> A = X.transpose() * X;
-
-    PackedTriangularMatrix<6> A_packed;
-    A_packed.setFromEigenMatrix(A);
-    for (unsigned r = 0; r < 6; ++r)
-        for (unsigned c = 0; c < 6; ++c)
-            assert (std::abs(A(r, c) - A_packed(r, c)) < 1e-10);
-
-    char uplo = 'L';
-    int n = 6;
-    int info = 0;
-    dpptrf_(&uplo, &n, A_packed.elems, &info);
-
-    Eigen::Matrix<double, 6, 6> L = A.llt().matrixL();
-    std::cout << "EIGEN RESULT" << std::endl << L << std::endl << std::endl;
-    std::cout << "LAPACK(PACKED) RESULT" << std::endl << A_packed.toEigenMatrix() << std::endl << std::endl;
-
-    char diag = 'N';
-    dtptri_(&uplo, &diag, &n, A_packed.elems, &info);
-    std::cout << "EIGEN RESULT" << std::endl << L.inverse() << std::endl << std::endl;
-    std::cout << "LAPACK(PACKED) RESULT" << std::endl << A_packed.toEigenMatrix() << std::endl;
-
-    /* Test vector multiplication with packed matrix (without LAPACK, because it also has to work with the Jet type. */
-    Eigen::Matrix<double, 6, 1> v(Eigen::Matrix<double, 6, 1>::Random());
-    Eigen::Matrix<double, 6, 1> Av(Eigen::Matrix<double, 6, 1>::Zero());
-    Eigen::Matrix<double, 6, 1> Av_fast(Av);
-
-    const Eigen::Matrix<double, 6, 1> Av_test = A_packed.toEigenMatrix() * v;
-    lower_triangular_packed_matrix_mult<double, 6>(A_packed.elems, v.data(), Av_fast.data());
-    assert ((Av_test - Av_fast).norm() < 1e-10);
-}
-
 static Eigen::Matrix3d crossx(const Eigen::Vector3d& v)
 {
     return (Eigen::Matrix3d() <<
@@ -196,10 +159,6 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
                     const std::list<Symmetry>& symmetries,
                     bool calibrate_with_hinges)
 {
-#if 0
-    test_helper_functions();
-#endif
-
     const unsigned numSensors = accumulateDeltaRuns.size();
 
     ceres::LocalParameterization *sphere_parameterization = new SphereParameterization;

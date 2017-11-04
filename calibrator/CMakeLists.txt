@@ -1,6 +1,8 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 project( CeresSirkaExtrinsicsCalibrator )
 
+enable_testing()
+
 ######################
 # find include dirs:
 ######################
@@ -53,3 +55,5 @@ IF(APPLE)
 ELSE(APPLE)
   TARGET_LINK_LIBRARIES( calibrator imureading ${LAPACK_LIBRARIES} ${CERES_LIBRARIES} ${Boost_LIBRARIES} ${PROTOBUF_LIBRARIES})
 ENDIF(APPLE)
+
+add_subdirectory(tests)
