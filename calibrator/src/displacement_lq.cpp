@@ -272,25 +272,6 @@ struct HingeError {
     }
 };
 
-#if 0
-void debug_sphere_parameterization()
-{
-    Eigen::Vector3d v;
-    v.setRandom();
-    v.normalize();
-    Eigen::Vector2d delta;
-    delta.setRandom();
-    delta.normalize();
-    delta *= M_PI_2;
-
-    Eigen::Vector3d v_plus_delta;
-    boxplus<double>(v.data(), delta.data(), v_plus_delta.data());
-    Eigen::Vector2d v_plus_delta_minus_v;
-    boxminus<double>(v_plus_delta.data(), v.data(), v_plus_delta_minus_v.data());
-    std::cout << delta << std::endl << v_plus_delta_minus_v << std::endl;
-}
-#endif
-
 static void calibrate_hinge(JointSensorMap::SensorLocation& jsmEntrySucc,
                             JointSensorMap::SensorLocation& jsmEntryPred,
                             const LIR::IMUAccumulates& readingsSucc,
@@ -301,9 +282,6 @@ void compute_initial_hinge_axes_guess(
         std::vector<std::shared_ptr<LIR::IMUAccumulates>> readings,
         JointSensorMap& jsm, const StandardDeviations& stddevs)
 {
-#if 0
-    debug_sphere_parameterization();
-#endif
     for (unsigned j = 0; j < jsm.numJoints; ++j) {
         JointSensorMap::SensorLocation& predecessor = jsm.sensors[j].predecessor();
         JointSensorMap::SensorLocation& successor = jsm.sensors[j].successor();
