@@ -130,7 +130,7 @@ void JointSensorMap::exportToAsymptote(const std::vector<Eigen::Quaterniond>& se
             const Vector3d& c = *joint_pos_world[jointId];
             const Vector3d hpredInWorld = sensorInWorld[ploc.sensorId] * ploc.hingeAxisInSensor;
             drawAxis(c - hpredInWorld * length, c, "orange", asyfile);
-            assert (sloc.type == JointType::hinge);
+            assert (sloc.type == LIR::JointType::hinge);
             const Vector3d hsuccInWorld = sensorInWorld[sloc.sensorId] * sloc.hingeAxisInSensor;
             drawAxis(c, c + hsuccInWorld * length, "blue", asyfile);
         }

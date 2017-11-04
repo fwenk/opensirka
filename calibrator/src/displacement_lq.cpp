@@ -595,7 +595,7 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
         const JointSensorMap::SensorLocation& predecessor = jointSensors.predecessor();
         const JointSensorMap::SensorLocation& successor = jointSensors.successor();
         const bool is_hinge = predecessor.type == LIR::JointType::hinge;
-        assert (!is_hinge || successor.type == JointType::hinge);
+        assert (!is_hinge || successor.type == LIR::JointType::hinge);
 
         // Initialize joint location for joint j.
         jointLocations.push_back(CeresJointLocation());
@@ -719,7 +719,7 @@ void run_calibrator(const std::vector<AccumulateRun>& accumulateDeltaRuns,
         }
 
         if (pred.type == LIR::JointType::hinge && calibrate_with_hinges) {
-            assert(succ.type == JointType::hinge);
+            assert(succ.type == LIR::JointType::hinge);
             HingeMap::const_iterator hinge = hingeMap.find(j);
             assert (hinge != hingeMap.end());
             assert(pred.sensorId == hinge->second.pred_sensor_id);
