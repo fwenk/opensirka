@@ -16,6 +16,7 @@ typedef std::list<Accumulate> AccumulateRun;
 #include "packed_triangular_matrix.h"
 
 #include <ceres/rotation.h>
+#include <ceres/loss_function.h>
 #include <map>
 
 #include <Eigen/Cholesky>
@@ -74,8 +75,10 @@ static void calibrate_hinge(JointSensorMap::SensorLocation& jsmEntrySucc,
     double axis_inSucc[3] = { 0.0, 1.0, 0.0 };
     double axis_inPred[3] = { 0.0, 1.0, 0.0 };
 
+    ceres::LossFunction *loss_function = new ceres::SoftLOneLoss(1.0);
+
     for (; it_succ != end_succ && it_pred != end_pred; ++it_succ, ++it_pred) {
-        problem.AddResidualBlock(HingeError::Create(*it_succ, *it_pred), NULL, axis_inSucc, axis_inPred);
+        problem.AddResidualBlock(HingeError::Create(*it_succ, *it_pred), loss_function, axis_inSucc, axis_inPred);
     }
     problem.SetParameterization(axis_inSucc, sphere_parameterization);
     problem.SetParameterization(axis_inPred, sphere_parameterization);
