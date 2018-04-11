@@ -4,7 +4,8 @@
  * Author: Felix Wenk <felix.wenk@dfki.de>
  */
 #define BOOST_TEST_MODULE "test_loadaccumulate"
-
+#include <fstream>
+#include <string>
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
 #include <boost/log/trivial.hpp>
